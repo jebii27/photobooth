@@ -193,7 +193,29 @@ function applyFilterPreset(presetKey) {
   syncFilterRangeInputs();
   syncFilterPresetControls();
   applyCameraPreviewFilter();
+  refreshCapturedThumbPreviews();
   queueRender();
+}
+
+function detectDeviceOrientation() {
+  if (window.matchMedia && window.matchMedia("(orientation: portrait)").matches) {
+    return "portrait";
+  }
+
+  return window.innerHeight >= window.innerWidth ? "portrait" : "landscape";
+}
+
+function updateDeviceOrientation() {
+  appState.deviceOrientation = detectDeviceOrientation();
+  document.body.dataset.deviceOrientation = appState.deviceOrientation;
+}
+
+function getCaptureDimensions() {
+  if (appState.deviceOrientation === "portrait") {
+    return { width: 960, height: 1280 };
+  }
+
+  return { width: 1280, height: 960 };
 }
 
 function getCarouselSlides() {
@@ -295,13 +317,35 @@ function flashCapture() {
   }, 140);
 }
 
-function renderPhotoThumbs(target) {
+function getThumbDataUrl(photo, useCurrentFilters = false) {
+  if (!useCurrentFilters) {
+    return photo.toDataURL("image/jpeg", 0.9);
+  }
+
+  const previewCanvas = document.createElement("canvas");
+  previewCanvas.width = photo.width;
+  previewCanvas.height = photo.height;
+
+  const context = previewCanvas.getContext("2d", { alpha: false });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.filter = buildFilterCss(appState.filters);
+  context.drawImage(photo, 0, 0);
+  context.filter = "none";
+
+  return previewCanvas.toDataURL("image/jpeg", 0.9);
+}
+
+function renderPhotoThumbs(target, options = {}) {
+  const { useCurrentFilters = false } = options;
   target.innerHTML = "";
 
   appState.photos.forEach((photo, index) => {
     const node = elements.thumbTemplate.content.firstElementChild.cloneNode(true);
+    const orientationClass = photo.height > photo.width ? "is-portrait" : "is-landscape";
+    node.classList.add(orientationClass);
     const image = node.querySelector("img");
-    image.src = photo.toDataURL("image/jpeg", 0.9);
+    image.src = getThumbDataUrl(photo, useCurrentFilters);
     image.alt = `Captured shot ${index + 1}`;
     target.appendChild(node);
   });
@@ -323,6 +367,7 @@ async function runCountdown(totalShots, shotIndex) {
 
 async function ensureCamera() {
   try {
+    updateDeviceOrientation();
     await cameraService.start();
     applyCameraPreviewFilter();
     setShotStatus("Camera ready");
@@ -357,6 +402,11 @@ function resetEditorUi() {
   Array.from(elements.stickerOptions.querySelectorAll(".chip")).forEach((chip) => {
     chip.classList.toggle("active", chip.dataset.sticker === appState.overlay.sticker);
   });
+}
+
+function refreshCapturedThumbPreviews() {
+  renderPhotoThumbs(elements.capturedThumbs, { useCurrentFilters: true });
+  renderPhotoThumbs(elements.modalThumbGrid, { useCurrentFilters: true });
 }
 
 function applyLayoutSelection(layout, options = {}) {
@@ -580,7 +630,7 @@ async function openEditStep() {
   closeModal();
   setScreen("edit");
   cameraService.stop();
-  renderPhotoThumbs(elements.capturedThumbs);
+  renderPhotoThumbs(elements.capturedThumbs, { useCurrentFilters: true });
   await renderComposedStrip();
 }
 
@@ -614,7 +664,9 @@ async function runCaptureFlow() {
   elements.captureBtn.disabled = true;
 
   try {
+    updateDeviceOrientation();
     resetCaptureSession();
+    const captureDimensions = getCaptureDimensions();
 
     const totalShots = getShotCount(appState.layout);
 
@@ -622,14 +674,17 @@ async function runCaptureFlow() {
       await runCountdown(totalShots, index);
       flashCapture();
 
-      const capturedFrame = cameraService.captureFrame(1280, 960);
+      const capturedFrame = cameraService.captureFrame(
+        captureDimensions.width,
+        captureDimensions.height
+      );
       appState.photos.push(capturedFrame);
 
       setShotStatus(`Captured shot ${index}/${totalShots}`);
       await wait(380);
     }
 
-    renderPhotoThumbs(elements.modalThumbGrid);
+    renderPhotoThumbs(elements.modalThumbGrid, { useCurrentFilters: true });
     openModal();
     setShotStatus("Capture complete. Review before editing.");
   } catch (error) {
@@ -682,6 +737,7 @@ function bindFilterControls() {
     appState.filters.grayscale = Number(event.target.value);
     syncFilterPresetControls();
     applyCameraPreviewFilter();
+    refreshCapturedThumbPreviews();
     queueRender();
   });
 
@@ -689,6 +745,7 @@ function bindFilterControls() {
     appState.filters.sepia = Number(event.target.value);
     syncFilterPresetControls();
     applyCameraPreviewFilter();
+    refreshCapturedThumbPreviews();
     queueRender();
   });
 
@@ -696,6 +753,7 @@ function bindFilterControls() {
     appState.filters.brightness = Number(event.target.value);
     syncFilterPresetControls();
     applyCameraPreviewFilter();
+    refreshCapturedThumbPreviews();
     queueRender();
   });
 
@@ -703,6 +761,7 @@ function bindFilterControls() {
     appState.filters.contrast = Number(event.target.value);
     syncFilterPresetControls();
     applyCameraPreviewFilter();
+    refreshCapturedThumbPreviews();
     queueRender();
   });
 
@@ -888,6 +947,20 @@ function bindMainActions() {
 }
 
 function initialize() {
+  const handleViewportOrientationChange = () => {
+    const previous = appState.deviceOrientation;
+    updateDeviceOrientation();
+
+    if (previous !== appState.deviceOrientation) {
+      refreshCapturedThumbPreviews();
+      queueRender();
+    }
+  };
+
+  updateDeviceOrientation();
+  window.addEventListener("resize", handleViewportOrientationChange, { passive: true });
+  window.addEventListener("orientationchange", handleViewportOrientationChange);
+
   bindLandingExperience();
   bindCaptureControls();
   bindFilterControls();

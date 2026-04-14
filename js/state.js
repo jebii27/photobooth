@@ -1,5 +1,6 @@
 export const appState = {
   currentStep: "landing",
+  deviceOrientation: "portrait",
   countdownSeconds: 3,
   layout: "strip4",
   photos: [],
