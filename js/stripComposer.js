@@ -13,35 +13,38 @@ function drawRoundedRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-function drawCoverImage(context, image, slot) {
+function drawContainImage(context, image, slot) {
   const sourceWidth = image.width;
   const sourceHeight = image.height;
   const sourceRatio = sourceWidth / sourceHeight;
   const slotRatio = slot.width / slot.height;
 
-  let cropWidth = sourceWidth;
-  let cropHeight = sourceHeight;
-  let cropX = 0;
-  let cropY = 0;
+  let drawWidth = slot.width;
+  let drawHeight = slot.height;
+  let drawX = slot.x;
+  let drawY = slot.y;
 
   if (sourceRatio > slotRatio) {
-    cropWidth = sourceHeight * slotRatio;
-    cropX = (sourceWidth - cropWidth) / 2;
+    drawHeight = slot.width / sourceRatio;
+    drawY = slot.y + (slot.height - drawHeight) / 2;
   } else {
-    cropHeight = sourceWidth / slotRatio;
-    cropY = (sourceHeight - cropHeight) / 2;
+    drawWidth = slot.height * sourceRatio;
+    drawX = slot.x + (slot.width - drawWidth) / 2;
   }
+
+  context.fillStyle = "rgba(244, 248, 255, 0.95)";
+  context.fillRect(slot.x, slot.y, slot.width, slot.height);
 
   context.drawImage(
     image,
-    cropX,
-    cropY,
-    cropWidth,
-    cropHeight,
-    slot.x,
-    slot.y,
-    slot.width,
-    slot.height
+    0,
+    0,
+    sourceWidth,
+    sourceHeight,
+    drawX,
+    drawY,
+    drawWidth,
+    drawHeight
   );
 }
 
@@ -260,7 +263,7 @@ export async function composeStrip({
     context.filter = filterString;
     drawRoundedRect(context, slot.x, slot.y, slot.width, slot.height, 14);
     context.clip();
-    drawCoverImage(context, source, slot);
+    drawContainImage(context, source, slot);
     context.restore();
   });
 
