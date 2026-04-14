@@ -37,6 +37,7 @@ const elements = {
   backToLandingBtn: document.getElementById("backToLandingBtn"),
   countdownOptions: document.getElementById("countdownOptions"),
   layoutOptions: document.getElementById("layoutOptions"),
+  cameraFilterPreset: document.getElementById("cameraFilterPreset"),
   countdownOverlay: document.getElementById("countdownOverlay"),
   shotStatus: document.getElementById("shotStatus"),
   captureFlash: document.getElementById("captureFlash"),
@@ -48,10 +49,12 @@ const elements = {
   capturedThumbs: document.getElementById("capturedThumbs"),
   retakeFromEditBtn: document.getElementById("retakeFromEditBtn"),
   toDownloadBtn: document.getElementById("toDownloadBtn"),
+  editFilterPreset: document.getElementById("editFilterPreset"),
   grayscaleRange: document.getElementById("grayscaleRange"),
   sepiaRange: document.getElementById("sepiaRange"),
   brightnessRange: document.getElementById("brightnessRange"),
   contrastRange: document.getElementById("contrastRange"),
+  editLayoutOptions: document.getElementById("editLayoutOptions"),
   frameOptions: document.getElementById("frameOptions"),
   stickerOptions: document.getElementById("stickerOptions"),
   finalCanvas: document.getElementById("finalCanvas"),
@@ -79,6 +82,38 @@ const carouselState = {
   timer: 0
 };
 const CAROUSEL_INTERVAL_MS = 4300;
+const FILTER_PRESETS = {
+  none: {
+    grayscale: 0,
+    sepia: 0,
+    brightness: 100,
+    contrast: 100
+  },
+  mono: {
+    grayscale: 100,
+    sepia: 0,
+    brightness: 105,
+    contrast: 110
+  },
+  vintage: {
+    grayscale: 18,
+    sepia: 34,
+    brightness: 108,
+    contrast: 94
+  },
+  bright: {
+    grayscale: 0,
+    sepia: 0,
+    brightness: 120,
+    contrast: 112
+  },
+  dramatic: {
+    grayscale: 0,
+    sepia: 20,
+    brightness: 90,
+    contrast: 132
+  }
+};
 
 function wait(milliseconds) {
   return new Promise((resolve) => {
@@ -91,6 +126,74 @@ function setShotStatus(message, isError = false) {
   elements.shotStatus.style.borderColor = isError
     ? "rgba(255, 92, 117, 0.8)"
     : "rgba(220, 233, 248, 0.28)";
+}
+
+function buildFilterCss(filters) {
+  return [
+    `grayscale(${filters.grayscale}%)`,
+    `sepia(${filters.sepia}%)`,
+    `brightness(${filters.brightness}%)`,
+    `contrast(${filters.contrast}%)`
+  ].join(" ");
+}
+
+function setFilterValues(filters) {
+  appState.filters.grayscale = filters.grayscale;
+  appState.filters.sepia = filters.sepia;
+  appState.filters.brightness = filters.brightness;
+  appState.filters.contrast = filters.contrast;
+}
+
+function syncFilterRangeInputs() {
+  elements.grayscaleRange.value = String(appState.filters.grayscale);
+  elements.sepiaRange.value = String(appState.filters.sepia);
+  elements.brightnessRange.value = String(appState.filters.brightness);
+  elements.contrastRange.value = String(appState.filters.contrast);
+}
+
+function getCurrentFilterPresetKey() {
+  const current = appState.filters;
+  const matchingPreset = Object.entries(FILTER_PRESETS).find(([, preset]) => {
+    return preset.grayscale === current.grayscale &&
+      preset.sepia === current.sepia &&
+      preset.brightness === current.brightness &&
+      preset.contrast === current.contrast;
+  });
+
+  return matchingPreset ? matchingPreset[0] : "custom";
+}
+
+function syncFilterPresetControls() {
+  const presetKey = getCurrentFilterPresetKey();
+
+  if (elements.cameraFilterPreset) {
+    elements.cameraFilterPreset.value = presetKey;
+  }
+
+  if (elements.editFilterPreset) {
+    elements.editFilterPreset.value = presetKey;
+  }
+}
+
+function applyCameraPreviewFilter() {
+  if (!elements.cameraFeed) {
+    return;
+  }
+
+  elements.cameraFeed.style.filter = buildFilterCss(appState.filters);
+}
+
+function applyFilterPreset(presetKey) {
+  const preset = FILTER_PRESETS[presetKey];
+  if (!preset) {
+    return;
+  }
+
+  setFilterValues(preset);
+  syncFilterRangeInputs();
+  syncFilterPresetControls();
+  applyCameraPreviewFilter();
+  queueRender();
 }
 
 function getCarouselSlides() {
@@ -221,6 +324,7 @@ async function runCountdown(totalShots, shotIndex) {
 async function ensureCamera() {
   try {
     await cameraService.start();
+    applyCameraPreviewFilter();
     setShotStatus("Camera ready");
     return true;
   } catch (error) {
@@ -236,10 +340,15 @@ async function goToCamera() {
 }
 
 function resetEditorUi() {
-  elements.grayscaleRange.value = String(appState.filters.grayscale);
-  elements.sepiaRange.value = String(appState.filters.sepia);
-  elements.brightnessRange.value = String(appState.filters.brightness);
-  elements.contrastRange.value = String(appState.filters.contrast);
+  syncFilterRangeInputs();
+  syncFilterPresetControls();
+  applyCameraPreviewFilter();
+
+  if (elements.editLayoutOptions) {
+    Array.from(elements.editLayoutOptions.querySelectorAll(".chip")).forEach((chip) => {
+      chip.classList.toggle("active", chip.dataset.layout === appState.layout);
+    });
+  }
 
   Array.from(elements.frameOptions.querySelectorAll(".chip")).forEach((chip) => {
     chip.classList.toggle("active", chip.dataset.frame === appState.overlay.frame);
@@ -533,23 +642,67 @@ async function runCaptureFlow() {
 }
 
 function bindFilterControls() {
+  if (elements.cameraFilterPreset) {
+    elements.cameraFilterPreset.addEventListener("change", (event) => {
+      const presetKey = event.target.value;
+      applyFilterPreset(presetKey);
+    });
+  }
+
+  if (elements.editFilterPreset) {
+    elements.editFilterPreset.addEventListener("change", (event) => {
+      const presetKey = event.target.value;
+      applyFilterPreset(presetKey);
+    });
+  }
+
+  if (elements.editLayoutOptions) {
+    elements.editLayoutOptions.addEventListener("click", (event) => {
+      const chip = event.target.closest(".chip");
+      if (!chip) {
+        return;
+      }
+
+      const selectedLayout = chip.dataset.layout;
+      if (!selectedLayout || !LAYOUT_PRESETS[selectedLayout]) {
+        return;
+      }
+
+      applyLayoutSelection(selectedLayout);
+
+      Array.from(elements.editLayoutOptions.querySelectorAll(".chip")).forEach((item) => {
+        item.classList.toggle("active", item === chip);
+      });
+
+      queueRender();
+    });
+  }
+
   elements.grayscaleRange.addEventListener("input", (event) => {
     appState.filters.grayscale = Number(event.target.value);
+    syncFilterPresetControls();
+    applyCameraPreviewFilter();
     queueRender();
   });
 
   elements.sepiaRange.addEventListener("input", (event) => {
     appState.filters.sepia = Number(event.target.value);
+    syncFilterPresetControls();
+    applyCameraPreviewFilter();
     queueRender();
   });
 
   elements.brightnessRange.addEventListener("input", (event) => {
     appState.filters.brightness = Number(event.target.value);
+    syncFilterPresetControls();
+    applyCameraPreviewFilter();
     queueRender();
   });
 
   elements.contrastRange.addEventListener("input", (event) => {
     appState.filters.contrast = Number(event.target.value);
+    syncFilterPresetControls();
+    applyCameraPreviewFilter();
     queueRender();
   });
 

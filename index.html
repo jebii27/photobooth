@@ -194,6 +194,18 @@
               </div>
             </div>
 
+            <div class="control-group">
+              <label for="cameraFilterPreset">Filter</label>
+              <select id="cameraFilterPreset" class="filter-select">
+                <option value="none">Clean (None)</option>
+                <option value="mono">Mono Boost</option>
+                <option value="vintage">Vintage Warm</option>
+                <option value="bright">Bright Pop</option>
+                <option value="dramatic">Dramatic Contrast</option>
+                <option value="custom" disabled>Custom (Sliders)</option>
+              </select>
+            </div>
+
             <p class="hint">Multi-shot layouts take four frames automatically.</p>
           </aside>
         </div>
@@ -215,6 +227,29 @@
           <aside class="control-panel card editing-panel">
             <h3>Minimal Editing</h3>
             <p class="hint">Clean photobooth output with no watermark branding.</p>
+
+            <div class="control-group">
+              <span>Layout</span>
+              <div class="chip-group" id="editLayoutOptions">
+                <button type="button" class="chip" data-layout="single">Single</button>
+                <button type="button" class="chip" data-layout="grid2x2">2x2 Grid</button>
+                <button type="button" class="chip active" data-layout="strip4">Vertical 4</button>
+                <button type="button" class="chip" data-layout="strip4Horizontal">Horizontal 4</button>
+              </div>
+              <p class="hint">Switch layout instantly using the current captured photos.</p>
+            </div>
+
+            <div class="control-group">
+              <label for="editFilterPreset">Filter Preset</label>
+              <select id="editFilterPreset" class="filter-select">
+                <option value="none">Clean (None)</option>
+                <option value="mono">Mono Boost</option>
+                <option value="vintage">Vintage Warm</option>
+                <option value="bright">Bright Pop</option>
+                <option value="dramatic">Dramatic Contrast</option>
+                <option value="custom" disabled>Custom (Sliders)</option>
+              </select>
+            </div>
 
             <div class="control-group">
               <label for="grayscaleRange">Grayscale</label>
