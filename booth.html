@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Avrielle Photo Booth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="ambient-bg" aria-hidden="true"></div>
+  <div class="sakura-layer" aria-hidden="true">
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+    <span class="petal"></span>
+  </div>
+
+  <div class="app-shell">
+    <header class="app-header card">
+      <div class="brand-wrap">
+        <img src="assets/brand-mark.svg" alt="Avrielle logo" class="brand-logo" />
+        <div>
+          <p class="eyebrow">Enterprise Photo Experience</p>
+          <h1>Avrielle Photo Booth</h1>
+        </div>
+      </div>
+      <ol class="flow-steps" id="flowSteps" aria-label="Photo booth progress">
+        <li data-step="camera" class="active">Camera</li>
+        <li data-step="edit">Edit</li>
+        <li data-step="download">Download</li>
+      </ol>
+    </header>
+
+    <main>
+      <section id="cameraScreen" class="screen">
+        <div class="camera-layout">
+          <div class="camera-stage card">
+            <div class="video-wrap responsive-camera-frame">
+              <video id="cameraFeed" autoplay playsinline muted></video>
+              <div id="captureFlash" class="capture-flash" aria-hidden="true"></div>
+              <div id="countdownOverlay" class="countdown-overlay hidden">3</div>
+              <div id="shotStatus" class="shot-status">Ready to capture</div>
+            </div>
+            <div class="camera-actions">
+              <button id="captureBtn" class="primary-btn">Capture</button>
+              <button id="backToLandingBtn" class="ghost-btn">Home</button>
+            </div>
+          </div>
+
+          <aside class="control-panel card">
+            <h3>Capture Settings</h3>
+
+            <div class="control-group">
+              <span>Countdown</span>
+              <div class="segmented" id="countdownOptions">
+                <button type="button" class="segment active" data-seconds="3">3s</button>
+                <button type="button" class="segment" data-seconds="5">5s</button>
+                <button type="button" class="segment" data-seconds="10">10s</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <span>Layout</span>
+              <div class="layout-options" id="layoutOptions">
+                <label>
+                  <input type="radio" name="layout" value="single" />
+                  Single Portrait
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="grid2x2" />
+                  2x2 Grid Strip (4 shots)
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="strip4" checked />
+                  Classic 4-Shot Strip
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="strip4Horizontal" />
+                  Horizontal 4-Shot Strip
+                </label>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label for="cameraFilterPreset">Filter</label>
+              <select id="cameraFilterPreset" class="filter-select">
+                <option value="none">Clean (None)</option>
+                <option value="mono">Mono Boost</option>
+                <option value="vintage">Vintage Warm</option>
+                <option value="bright">Bright Pop</option>
+                <option value="dramatic">Dramatic Contrast</option>
+                <option value="custom" disabled>Custom (Sliders)</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label for="cameraFacingMode">Lens</label>
+              <select id="cameraFacingMode" class="filter-select">
+                <option value="user">Front Camera</option>
+                <option value="environment">Rear Camera</option>
+              </select>
+              <label class="toggle">
+                <input id="mirrorPreviewToggle" type="checkbox" checked />
+                Mirror preview and capture
+              </label>
+            </div>
+
+            <p class="hint">Multi-shot layouts take four frames automatically.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="editScreen" class="screen">
+        <div class="edit-layout">
+          <div class="preview-stage card">
+            <div class="preview-canvas-wrap">
+              <canvas id="editPreviewCanvas" aria-label="Photo strip preview"></canvas>
+            </div>
+            <div id="capturedThumbs" class="thumb-strip" aria-label="Captured photos"></div>
+            <div class="edit-actions">
+              <button id="retakeFromEditBtn" class="ghost-btn">Retake</button>
+              <button id="toDownloadBtn" class="primary-btn">Continue to Download</button>
+            </div>
+          </div>
+
+          <aside class="control-panel card editing-panel">
+            <h3>Minimal Editing</h3>
+            <p class="hint">Clean photobooth output with no watermark branding.</p>
+
+            <div class="control-group">
+              <span>Layout</span>
+              <div class="chip-group" id="editLayoutOptions">
+                <button type="button" class="chip" data-layout="single">Single</button>
+                <button type="button" class="chip" data-layout="grid2x2">2x2 Grid</button>
+                <button type="button" class="chip active" data-layout="strip4">Vertical 4</button>
+                <button type="button" class="chip" data-layout="strip4Horizontal">Horizontal 4</button>
+              </div>
+              <p class="hint">Switch layout instantly using the current captured photos.</p>
+            </div>
+
+            <div class="control-group">
+              <label for="editFilterPreset">Filter Preset</label>
+              <select id="editFilterPreset" class="filter-select">
+                <option value="none">Clean (None)</option>
+                <option value="mono">Mono Boost</option>
+                <option value="vintage">Vintage Warm</option>
+                <option value="bright">Bright Pop</option>
+                <option value="dramatic">Dramatic Contrast</option>
+                <option value="custom" disabled>Custom (Sliders)</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <span>Branding and Messaging</span>
+              <label for="brandEventTitle">Event Title</label>
+              <input id="brandEventTitle" type="text" maxlength="40" placeholder="Avrielle Launch Party" />
+              <label for="brandTagline">Tagline / Hashtag</label>
+              <input id="brandTagline" type="text" maxlength="48" placeholder="#avriellemoments" />
+              <label class="toggle">
+                <input id="showDateStamp" type="checkbox" checked />
+                Show date stamp on strip
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label for="grayscaleRange">Grayscale</label>
+              <input id="grayscaleRange" type="range" min="0" max="100" value="0" />
+            </div>
+
+            <div class="control-group">
+              <label for="sepiaRange">Sepia</label>
+              <input id="sepiaRange" type="range" min="0" max="100" value="0" />
+            </div>
+
+            <div class="control-group">
+              <label for="brightnessRange">Brightness</label>
+              <input id="brightnessRange" type="range" min="50" max="150" value="100" />
+            </div>
+
+            <div class="control-group">
+              <label for="contrastRange">Contrast</label>
+              <input id="contrastRange" type="range" min="50" max="150" value="100" />
+            </div>
+
+            <div class="control-group">
+              <span>Frame</span>
+              <div class="chip-group" id="frameOptions">
+                <button type="button" class="chip active" data-frame="none">None</button>
+                <button type="button" class="chip" data-frame="neon">Neon</button>
+                <button type="button" class="chip" data-frame="film">Film</button>
+                <button type="button" class="chip" data-frame="studio">Studio</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <span>Sticker</span>
+              <div class="chip-group" id="stickerOptions">
+                <button type="button" class="chip active" data-sticker="none">None</button>
+                <button type="button" class="chip" data-sticker="spark">Spark</button>
+                <button type="button" class="chip" data-sticker="star">Star</button>
+                <button type="button" class="chip" data-sticker="camera">Camera</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="downloadScreen" class="screen">
+        <div class="download-layout">
+          <div class="download-preview card">
+            <div class="download-canvas-wrap">
+              <canvas id="finalCanvas" aria-label="Final strip"></canvas>
+            </div>
+          </div>
+
+          <aside class="control-panel card">
+            <h3>Export & Print</h3>
+            <p id="exportInfo" class="hint"></p>
+
+            <div class="control-group">
+              <span>Instant Sharing</span>
+              <button id="shareStripBtn" class="secondary-btn" type="button">Share Strip</button>
+              <p id="shareStatus" class="hint">Use native sharing on supported devices and browsers.</p>
+            </div>
+
+            <div class="control-group lead-capture-group">
+              <span>Lead Capture</span>
+              <label for="leadName">Name</label>
+              <input id="leadName" type="text" maxlength="60" placeholder="Guest name" />
+              <label for="leadEmail">Email</label>
+              <input id="leadEmail" type="text" maxlength="120" placeholder="name@example.com" />
+              <label for="leadPhone">Phone</label>
+              <input id="leadPhone" type="text" maxlength="32" placeholder="+1 555 123 4567" />
+              <label class="toggle">
+                <input id="leadConsent" type="checkbox" />
+                I agree to receive follow-up messages.
+              </label>
+              <div class="button-stack compact-stack">
+                <button id="saveLeadBtn" class="primary-btn" type="button">Save Lead</button>
+                <button id="exportLeadsCsvBtn" class="ghost-btn" type="button">Export Leads CSV</button>
+              </div>
+              <p id="leadStatus" class="hint">Leads and analytics are stored locally on this device.</p>
+            </div>
+
+            <div class="button-stack">
+              <button id="downloadPngBtn" class="primary-btn">Download PNG</button>
+              <button id="downloadJpgBtn" class="secondary-btn">Download JPG</button>
+              <button id="printBtn" class="ghost-btn">Print Strip</button>
+              <button id="saveGalleryBtn" class="ghost-btn">Save to Gallery</button>
+            </div>
+
+            <button id="newSessionBtn" class="primary-btn full-width">New Session</button>
+          </aside>
+        </div>
+
+        <section class="gallery card">
+          <div class="gallery-head">
+            <h3>Auto-save Gallery</h3>
+            <button id="clearGalleryBtn" class="ghost-btn small">Clear Gallery</button>
+          </div>
+          <div id="galleryGrid" class="gallery-grid"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div id="previewModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card card">
+      <h3>Review Captured Shots</h3>
+      <p>Confirm your photos before entering the editing panel.</p>
+      <div class="modal-preview-wrap">
+        <img id="modalPreviewImage" alt="Selected captured shot preview" />
+      </div>
+      <div id="modalThumbGrid" class="modal-thumb-grid"></div>
+      <div class="modal-actions">
+        <button id="retakeBtn" class="ghost-btn">Retake</button>
+        <button id="proceedToEditBtn" class="primary-btn">Edit Strip</button>
+      </div>
+    </div>
+  </div>
+
+  <template id="thumbItemTemplate">
+    <figure class="thumb-item">
+      <img alt="Captured frame" />
+    </figure>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

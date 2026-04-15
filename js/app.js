@@ -19,7 +19,7 @@ import {
   saveLeadItem
 } from "./storage.js";
 
-const screenIds = ["landing", "camera", "edit", "download"];
+const fallbackScreenIds = ["landing", "camera", "edit", "download"];
 
 const elements = {
   screens: {
@@ -95,6 +95,9 @@ const elements = {
   thumbTemplate: document.getElementById("thumbItemTemplate")
 };
 
+const screenIds = fallbackScreenIds.filter((step) => Boolean(elements.screens[step]));
+const hasLandingScreen = Boolean(elements.screens.landing);
+
 const cameraService = new CameraService(elements.cameraFeed, {
   facingMode: appState.camera.facingMode,
   mirrorPreview: appState.camera.mirror,
@@ -151,6 +154,10 @@ function wait(milliseconds) {
 }
 
 function setShotStatus(message, isError = false) {
+  if (!elements.shotStatus) {
+    return;
+  }
+
   elements.shotStatus.textContent = message;
   elements.shotStatus.style.borderColor = isError
     ? "rgba(255, 92, 117, 0.8)"
@@ -402,6 +409,10 @@ function setScreen(step) {
   appState.currentStep = step;
 
   Object.entries(elements.screens).forEach(([key, element]) => {
+    if (!element) {
+      return;
+    }
+
     element.classList.toggle("active", key === step);
   });
 
@@ -1228,9 +1239,11 @@ function bindLandingExperience() {
 }
 
 function bindMainActions() {
-  elements.startBoothBtn.addEventListener("click", () => {
-    beginNewSession();
-  });
+  if (elements.startBoothBtn) {
+    elements.startBoothBtn.addEventListener("click", () => {
+      beginNewSession();
+    });
+  }
 
   if (elements.continueWithSelectionBtn) {
     elements.continueWithSelectionBtn.addEventListener("click", () => {
@@ -1238,11 +1251,19 @@ function bindMainActions() {
     });
   }
 
-  elements.backToLandingBtn.addEventListener("click", () => {
-    cameraService.stop();
-    setScreen("landing");
-    setShotStatus("Ready to capture");
-  });
+  if (elements.backToLandingBtn) {
+    elements.backToLandingBtn.addEventListener("click", () => {
+      cameraService.stop();
+
+      if (hasLandingScreen) {
+        setScreen("landing");
+        setShotStatus("Ready to capture");
+        return;
+      }
+
+      window.location.href = "index.html";
+    });
+  }
 
   elements.captureBtn.addEventListener("click", () => {
     runCaptureFlow();
@@ -1343,14 +1364,23 @@ function initialize() {
   bindCaptureControls();
   bindFilterControls();
   bindMainActions();
-  setCarouselIndex(0);
+  if (hasLandingScreen) {
+    setCarouselIndex(0);
+  }
   applyLayoutSelection(appState.layout);
   resetEditorUi();
   refreshAnalyticsDashboard();
   setHintStatus(elements.shareStatus, "Use native sharing on supported devices and browsers.");
   setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
   renderGallery();
-  setScreen("landing");
+  if (hasLandingScreen) {
+    setScreen("landing");
+  } else if (elements.screens.camera) {
+    setScreen("camera");
+    ensureCamera();
+  } else if (screenIds.length > 0) {
+    setScreen(screenIds[0]);
+  }
   setShotStatus("Ready to capture");
 }
 
