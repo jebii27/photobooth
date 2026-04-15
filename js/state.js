@@ -3,6 +3,10 @@ export const appState = {
   deviceOrientation: "portrait",
   countdownSeconds: 3,
   layout: "strip4",
+  camera: {
+    facingMode: "user",
+    mirror: true
+  },
   photos: [],
   filters: {
     grayscale: 0,
@@ -13,6 +17,11 @@ export const appState = {
   overlay: {
     frame: "none",
     sticker: "none"
+  },
+  branding: {
+    eventTitle: "Avrielle Photo Booth",
+    tagline: "#avriellemoments",
+    showDate: true
   },
   finalCanvas: null,
   autoSavedCurrentResult: false

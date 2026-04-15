@@ -194,6 +194,53 @@ function drawFrame(context, preset, frame) {
   drawNeonFrame(context, preset);
 }
 
+function drawBranding(context, preset, branding = {}) {
+  const eventTitle = String(branding.eventTitle || "").trim().slice(0, 48);
+  const tagline = String(branding.tagline || "").trim().slice(0, 64);
+  const showDate = branding.showDate !== false;
+
+  const detailParts = [];
+  if (tagline) {
+    detailParts.push(tagline);
+  }
+  if (showDate) {
+    detailParts.push(new Date().toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }));
+  }
+
+  if (!eventTitle && !detailParts.length) {
+    return;
+  }
+
+  const centerX = preset.width / 2;
+  const bottomPadding = Math.round(Math.max(26, preset.height * 0.022));
+  const detailY = preset.height - bottomPadding;
+  const titleY = detailParts.length ? detailY - Math.round(Math.max(26, preset.height * 0.02)) : detailY;
+
+  context.save();
+  context.textAlign = "center";
+  context.textBaseline = "alphabetic";
+
+  if (eventTitle) {
+    const titleSize = Math.round(Math.max(18, Math.min(44, preset.width * 0.022)));
+    context.font = `700 ${titleSize}px "Plus Jakarta Sans", "Segoe UI", sans-serif`;
+    context.fillStyle = "rgba(36, 62, 79, 0.92)";
+    context.fillText(eventTitle, centerX, titleY);
+  }
+
+  if (detailParts.length) {
+    const detailSize = Math.round(Math.max(14, Math.min(30, preset.width * 0.012)));
+    context.font = `600 ${detailSize}px "Plus Jakarta Sans", "Segoe UI", sans-serif`;
+    context.fillStyle = "rgba(56, 88, 109, 0.78)";
+    context.fillText(detailParts.join(" | "), centerX, detailY);
+  }
+
+  context.restore();
+}
+
 function loadImage(source) {
   if (imageCache.has(source)) {
     return imageCache.get(source);
@@ -236,7 +283,8 @@ export async function composeStrip({
   layout,
   filters,
   frame,
-  sticker
+  sticker,
+  branding
 }) {
   if (!photos || photos.length === 0) {
     throw new Error("No photos were provided for strip rendering.");
@@ -273,6 +321,8 @@ export async function composeStrip({
     const stickerImage = await loadImage(STICKER_ASSETS[sticker]);
     drawSticker(context, preset, stickerImage);
   }
+
+  drawBranding(context, preset, branding);
 
   return outputCanvas;
 }

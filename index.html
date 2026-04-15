@@ -142,6 +142,39 @@
               <button id="continueWithSelectionBtn" class="primary-btn" type="button">Continue with Selected Package</button>
             </div>
           </section>
+
+          <section class="analytics-panel card" aria-label="Session analytics">
+            <div class="analytics-head">
+              <h3>Booth Pulse</h3>
+              <p>Inspired by event booth dashboards: monitor live engagement from this device.</p>
+            </div>
+            <div class="analytics-grid">
+              <article class="metric-tile">
+                <span>Sessions</span>
+                <strong id="metricSessions">0</strong>
+              </article>
+              <article class="metric-tile">
+                <span>Captures</span>
+                <strong id="metricCaptures">0</strong>
+              </article>
+              <article class="metric-tile">
+                <span>Downloads</span>
+                <strong id="metricDownloads">0</strong>
+              </article>
+              <article class="metric-tile">
+                <span>Prints</span>
+                <strong id="metricPrints">0</strong>
+              </article>
+              <article class="metric-tile">
+                <span>Shares</span>
+                <strong id="metricShares">0</strong>
+              </article>
+              <article class="metric-tile">
+                <span>Leads</span>
+                <strong id="metricLeads">0</strong>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -206,6 +239,18 @@
               </select>
             </div>
 
+            <div class="control-group">
+              <label for="cameraFacingMode">Lens</label>
+              <select id="cameraFacingMode" class="filter-select">
+                <option value="user">Front Camera</option>
+                <option value="environment">Rear Camera</option>
+              </select>
+              <label class="toggle">
+                <input id="mirrorPreviewToggle" type="checkbox" checked />
+                Mirror preview and capture
+              </label>
+            </div>
+
             <p class="hint">Multi-shot layouts take four frames automatically.</p>
           </aside>
         </div>
@@ -249,6 +294,18 @@
                 <option value="dramatic">Dramatic Contrast</option>
                 <option value="custom" disabled>Custom (Sliders)</option>
               </select>
+            </div>
+
+            <div class="control-group">
+              <span>Branding and Messaging</span>
+              <label for="brandEventTitle">Event Title</label>
+              <input id="brandEventTitle" type="text" maxlength="40" placeholder="Avrielle Launch Party" />
+              <label for="brandTagline">Tagline / Hashtag</label>
+              <input id="brandTagline" type="text" maxlength="48" placeholder="#avriellemoments" />
+              <label class="toggle">
+                <input id="showDateStamp" type="checkbox" checked />
+                Show date stamp on strip
+              </label>
             </div>
 
             <div class="control-group">
@@ -305,6 +362,31 @@
           <aside class="control-panel card">
             <h3>Export & Print</h3>
             <p id="exportInfo" class="hint"></p>
+
+            <div class="control-group">
+              <span>Instant Sharing</span>
+              <button id="shareStripBtn" class="secondary-btn" type="button">Share Strip</button>
+              <p id="shareStatus" class="hint">Use native sharing on supported devices and browsers.</p>
+            </div>
+
+            <div class="control-group lead-capture-group">
+              <span>Lead Capture</span>
+              <label for="leadName">Name</label>
+              <input id="leadName" type="text" maxlength="60" placeholder="Guest name" />
+              <label for="leadEmail">Email</label>
+              <input id="leadEmail" type="text" maxlength="120" placeholder="name@example.com" />
+              <label for="leadPhone">Phone</label>
+              <input id="leadPhone" type="text" maxlength="32" placeholder="+1 555 123 4567" />
+              <label class="toggle">
+                <input id="leadConsent" type="checkbox" />
+                I agree to receive follow-up messages.
+              </label>
+              <div class="button-stack compact-stack">
+                <button id="saveLeadBtn" class="primary-btn" type="button">Save Lead</button>
+                <button id="exportLeadsCsvBtn" class="ghost-btn" type="button">Export Leads CSV</button>
+              </div>
+              <p id="leadStatus" class="hint">Leads and analytics are stored locally on this device.</p>
+            </div>
 
             <div class="button-stack">
               <button id="downloadPngBtn" class="primary-btn">Download PNG</button>

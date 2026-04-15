@@ -9,9 +9,14 @@ import {
 } from "./state.js";
 import {
   clearGallery,
+  getBoothAnalytics,
   getGalleryItems,
+  getLeadItems,
+  getLeadsCsvContent,
+  incrementBoothAnalytics,
   removeGalleryItem,
-  saveGalleryItem
+  saveGalleryItem,
+  saveLeadItem
 } from "./storage.js";
 
 const screenIds = ["landing", "camera", "edit", "download"];
@@ -38,6 +43,8 @@ const elements = {
   countdownOptions: document.getElementById("countdownOptions"),
   layoutOptions: document.getElementById("layoutOptions"),
   cameraFilterPreset: document.getElementById("cameraFilterPreset"),
+  cameraFacingMode: document.getElementById("cameraFacingMode"),
+  mirrorPreviewToggle: document.getElementById("mirrorPreviewToggle"),
   countdownOverlay: document.getElementById("countdownOverlay"),
   shotStatus: document.getElementById("shotStatus"),
   captureFlash: document.getElementById("captureFlash"),
@@ -57,8 +64,20 @@ const elements = {
   editLayoutOptions: document.getElementById("editLayoutOptions"),
   frameOptions: document.getElementById("frameOptions"),
   stickerOptions: document.getElementById("stickerOptions"),
+  brandEventTitle: document.getElementById("brandEventTitle"),
+  brandTagline: document.getElementById("brandTagline"),
+  showDateStamp: document.getElementById("showDateStamp"),
   finalCanvas: document.getElementById("finalCanvas"),
   exportInfo: document.getElementById("exportInfo"),
+  shareStripBtn: document.getElementById("shareStripBtn"),
+  shareStatus: document.getElementById("shareStatus"),
+  leadName: document.getElementById("leadName"),
+  leadEmail: document.getElementById("leadEmail"),
+  leadPhone: document.getElementById("leadPhone"),
+  leadConsent: document.getElementById("leadConsent"),
+  saveLeadBtn: document.getElementById("saveLeadBtn"),
+  exportLeadsCsvBtn: document.getElementById("exportLeadsCsvBtn"),
+  leadStatus: document.getElementById("leadStatus"),
   downloadPngBtn: document.getElementById("downloadPngBtn"),
   downloadJpgBtn: document.getElementById("downloadJpgBtn"),
   printBtn: document.getElementById("printBtn"),
@@ -66,12 +85,19 @@ const elements = {
   newSessionBtn: document.getElementById("newSessionBtn"),
   galleryGrid: document.getElementById("galleryGrid"),
   clearGalleryBtn: document.getElementById("clearGalleryBtn"),
+  metricSessions: document.getElementById("metricSessions"),
+  metricCaptures: document.getElementById("metricCaptures"),
+  metricDownloads: document.getElementById("metricDownloads"),
+  metricPrints: document.getElementById("metricPrints"),
+  metricShares: document.getElementById("metricShares"),
+  metricLeads: document.getElementById("metricLeads"),
   thumbTemplate: document.getElementById("thumbItemTemplate")
 };
 
 const cameraService = new CameraService(elements.cameraFeed, {
-  mirrorPreview: true,
-  mirrorCapture: true
+  facingMode: appState.camera.facingMode,
+  mirrorPreview: appState.camera.mirror,
+  mirrorCapture: appState.camera.mirror
 });
 
 let isCapturing = false;
@@ -114,6 +140,7 @@ const FILTER_PRESETS = {
     contrast: 132
   }
 };
+let boothAnalytics = getBoothAnalytics();
 
 function wait(milliseconds) {
   return new Promise((resolve) => {
@@ -126,6 +153,48 @@ function setShotStatus(message, isError = false) {
   elements.shotStatus.style.borderColor = isError
     ? "rgba(255, 92, 117, 0.8)"
     : "rgba(220, 233, 248, 0.28)";
+}
+
+function setHintStatus(target, message, isError = false) {
+  if (!target) {
+    return;
+  }
+
+  target.textContent = message;
+  target.style.color = isError ? "#b64f5a" : "var(--text-muted)";
+}
+
+function normalizeTextValue(value, maxLength = 64) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function renderAnalytics(analytics) {
+  const metrics = {
+    sessions: elements.metricSessions,
+    captures: elements.metricCaptures,
+    downloads: elements.metricDownloads,
+    prints: elements.metricPrints,
+    shares: elements.metricShares,
+    leads: elements.metricLeads
+  };
+
+  Object.entries(metrics).forEach(([metric, target]) => {
+    if (!target) {
+      return;
+    }
+
+    target.textContent = String(analytics[metric] || 0);
+  });
+}
+
+function refreshAnalyticsDashboard() {
+  boothAnalytics = getBoothAnalytics();
+  renderAnalytics(boothAnalytics);
+}
+
+function bumpAnalytics(metric, amount = 1) {
+  boothAnalytics = incrementBoothAnalytics(metric, amount);
+  renderAnalytics(boothAnalytics);
 }
 
 function buildFilterCss(filters) {
@@ -149,6 +218,30 @@ function syncFilterRangeInputs() {
   elements.sepiaRange.value = String(appState.filters.sepia);
   elements.brightnessRange.value = String(appState.filters.brightness);
   elements.contrastRange.value = String(appState.filters.contrast);
+}
+
+function syncCameraControls() {
+  if (elements.cameraFacingMode) {
+    elements.cameraFacingMode.value = appState.camera.facingMode;
+  }
+
+  if (elements.mirrorPreviewToggle) {
+    elements.mirrorPreviewToggle.checked = appState.camera.mirror;
+  }
+}
+
+function syncBrandingInputs() {
+  if (elements.brandEventTitle) {
+    elements.brandEventTitle.value = appState.branding.eventTitle;
+  }
+
+  if (elements.brandTagline) {
+    elements.brandTagline.value = appState.branding.tagline;
+  }
+
+  if (elements.showDateStamp) {
+    elements.showDateStamp.checked = Boolean(appState.branding.showDate);
+  }
 }
 
 function getCurrentFilterPresetKey() {
@@ -368,7 +461,10 @@ async function runCountdown(totalShots, shotIndex) {
 async function ensureCamera() {
   try {
     updateDeviceOrientation();
+    cameraService.facingMode = appState.camera.facingMode;
+    cameraService.setMirror(appState.camera.mirror);
     await cameraService.start();
+    syncCameraControls();
     applyCameraPreviewFilter();
     setShotStatus("Camera ready");
     return true;
@@ -387,6 +483,8 @@ async function goToCamera() {
 function resetEditorUi() {
   syncFilterRangeInputs();
   syncFilterPresetControls();
+  syncCameraControls();
+  syncBrandingInputs();
   applyCameraPreviewFilter();
 
   if (elements.editLayoutOptions) {
@@ -459,7 +557,8 @@ async function renderComposedStrip() {
       layout: appState.layout,
       filters: appState.filters,
       frame: appState.overlay.frame,
-      sticker: appState.overlay.sticker
+      sticker: appState.overlay.sticker,
+      branding: appState.branding
     });
 
     if (token !== renderToken) {
@@ -499,6 +598,126 @@ function downloadDataUrl(dataUrl, fileName) {
   link.remove();
 }
 
+function downloadBlob(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 0);
+}
+
+function canvasToBlob(canvas, type = "image/png", quality = 0.94) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Could not generate a share file."));
+        return;
+      }
+
+      resolve(blob);
+    }, type, quality);
+  });
+}
+
+async function shareCurrentStrip() {
+  if (!appState.finalCanvas) {
+    setHintStatus(elements.shareStatus, "Create a strip first before sharing.", true);
+    return;
+  }
+
+  const shareTitle = appState.branding.eventTitle || "Avrielle Photo Booth";
+  const shareText = appState.branding.tagline || "Captured with Avrielle Photo Booth";
+
+  try {
+    if (navigator.share) {
+      const blob = await canvasToBlob(appState.finalCanvas, "image/png", 0.96);
+      const fileName = `lumina-strip-${Date.now()}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          files: [file]
+        });
+      } else {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: window.location.href
+        });
+      }
+
+      bumpAnalytics("shares", 1);
+      setHintStatus(elements.shareStatus, "Share complete.");
+      return;
+    }
+
+    setHintStatus(
+      elements.shareStatus,
+      "Native share is not available here. Use Download PNG, then share from your gallery.",
+      true
+    );
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      setHintStatus(elements.shareStatus, "Share canceled.");
+      return;
+    }
+
+    setHintStatus(elements.shareStatus, "Could not share strip on this browser.", true);
+  }
+}
+
+function saveLeadFromForm() {
+  const payload = {
+    name: normalizeTextValue(elements.leadName.value, 60),
+    email: normalizeTextValue(elements.leadEmail.value, 120),
+    phone: normalizeTextValue(elements.leadPhone.value, 32),
+    consent: Boolean(elements.leadConsent.checked),
+    layout: appState.layout
+  };
+
+  if (!payload.email && !payload.phone) {
+    setHintStatus(elements.leadStatus, "Provide at least an email or phone number.", true);
+    return;
+  }
+
+  if (!payload.consent) {
+    setHintStatus(elements.leadStatus, "Consent is required to store lead details.", true);
+    return;
+  }
+
+  saveLeadItem(payload);
+  bumpAnalytics("leads", 1);
+  const leadCount = getLeadItems().length;
+
+  elements.leadName.value = "";
+  elements.leadEmail.value = "";
+  elements.leadPhone.value = "";
+  elements.leadConsent.checked = false;
+
+  setHintStatus(elements.leadStatus, `Lead saved. Total local leads: ${leadCount}.`);
+}
+
+function exportLeadsCsv() {
+  const leads = getLeadItems();
+  if (!leads.length) {
+    setHintStatus(elements.leadStatus, "No leads to export yet.", true);
+    return;
+  }
+
+  const csv = getLeadsCsvContent();
+  const csvBlob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  downloadBlob(csvBlob, `lumina-leads-${stamp}.csv`);
+  setHintStatus(elements.leadStatus, `Exported ${leads.length} leads to CSV.`);
+}
+
 function downloadCurrent(format) {
   if (!appState.finalCanvas) {
     return;
@@ -509,11 +728,13 @@ function downloadCurrent(format) {
   if (format === "png") {
     const dataUrl = appState.finalCanvas.toDataURL("image/png");
     downloadDataUrl(dataUrl, `lumina-strip-${stamp}.png`);
+    bumpAnalytics("downloads", 1);
     return;
   }
 
   const dataUrl = appState.finalCanvas.toDataURL("image/jpeg", 0.94);
   downloadDataUrl(dataUrl, `lumina-strip-${stamp}.jpg`);
+  bumpAnalytics("downloads", 1);
 }
 
 function printCurrentStrip() {
@@ -547,6 +768,7 @@ function printCurrentStrip() {
   popup.document.close();
   popup.focus();
   popup.onload = () => {
+    bumpAnalytics("prints", 1);
     popup.print();
   };
 }
@@ -617,10 +839,13 @@ function renderGallery() {
 }
 
 function beginNewSession() {
+  bumpAnalytics("sessions", 1);
   resetCaptureSession();
   resetEditorDefaults();
   resetEditorUi();
   closeModal();
+  setHintStatus(elements.shareStatus, "Use native sharing on supported devices and browsers.");
+  setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
   renderPhotoThumbs(elements.capturedThumbs);
   renderPhotoThumbs(elements.modalThumbGrid);
   goToCamera();
@@ -683,6 +908,8 @@ async function runCaptureFlow() {
       setShotStatus(`Captured shot ${index}/${totalShots}`);
       await wait(380);
     }
+
+    bumpAnalytics("captures", totalShots);
 
     renderPhotoThumbs(elements.modalThumbGrid, { useCurrentFilters: true });
     openModal();
@@ -794,6 +1021,30 @@ function bindFilterControls() {
 
     queueRender();
   });
+
+  if (elements.brandEventTitle) {
+    elements.brandEventTitle.addEventListener("input", (event) => {
+      appState.branding.eventTitle = normalizeTextValue(event.target.value, 40);
+      appState.autoSavedCurrentResult = false;
+      queueRender();
+    });
+  }
+
+  if (elements.brandTagline) {
+    elements.brandTagline.addEventListener("input", (event) => {
+      appState.branding.tagline = normalizeTextValue(event.target.value, 48);
+      appState.autoSavedCurrentResult = false;
+      queueRender();
+    });
+  }
+
+  if (elements.showDateStamp) {
+    elements.showDateStamp.addEventListener("change", (event) => {
+      appState.branding.showDate = Boolean(event.target.checked);
+      appState.autoSavedCurrentResult = false;
+      queueRender();
+    });
+  }
 }
 
 function bindCaptureControls() {
@@ -816,6 +1067,38 @@ function bindCaptureControls() {
       applyLayoutSelection(target.value, { syncCamera: false });
     }
   });
+
+  if (elements.cameraFacingMode) {
+    elements.cameraFacingMode.addEventListener("change", async (event) => {
+      const selectedMode = event.target.value === "environment" ? "environment" : "user";
+      appState.camera.facingMode = selectedMode;
+      cameraService.facingMode = selectedMode;
+
+      if (!cameraService.isReady()) {
+        return;
+      }
+
+      try {
+        await cameraService.setFacingMode(selectedMode);
+        applyCameraPreviewFilter();
+        setShotStatus(selectedMode === "environment" ? "Rear camera active" : "Front camera active");
+      } catch (error) {
+        appState.camera.facingMode = "user";
+        cameraService.facingMode = "user";
+        syncCameraControls();
+        setShotStatus(error.message || "Could not switch camera", true);
+      }
+    });
+  }
+
+  if (elements.mirrorPreviewToggle) {
+    elements.mirrorPreviewToggle.addEventListener("change", (event) => {
+      const shouldMirror = Boolean(event.target.checked);
+      appState.camera.mirror = shouldMirror;
+      cameraService.setMirror(shouldMirror);
+      setShotStatus(shouldMirror ? "Mirror mode enabled" : "Mirror mode disabled");
+    });
+  }
 }
 
 function bindLandingExperience() {
@@ -920,6 +1203,24 @@ function bindMainActions() {
     printCurrentStrip();
   });
 
+  if (elements.shareStripBtn) {
+    elements.shareStripBtn.addEventListener("click", () => {
+      shareCurrentStrip();
+    });
+  }
+
+  if (elements.saveLeadBtn) {
+    elements.saveLeadBtn.addEventListener("click", () => {
+      saveLeadFromForm();
+    });
+  }
+
+  if (elements.exportLeadsCsvBtn) {
+    elements.exportLeadsCsvBtn.addEventListener("click", () => {
+      exportLeadsCsv();
+    });
+  }
+
   elements.saveGalleryBtn.addEventListener("click", () => {
     if (!appState.finalCanvas) {
       return;
@@ -968,6 +1269,9 @@ function initialize() {
   setCarouselIndex(0);
   applyLayoutSelection(appState.layout);
   resetEditorUi();
+  refreshAnalyticsDashboard();
+  setHintStatus(elements.shareStatus, "Use native sharing on supported devices and browsers.");
+  setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
   renderGallery();
   setScreen("landing");
   setShotStatus("Ready to capture");

@@ -2,6 +2,7 @@ export class CameraService {
   constructor(videoElement, options = {}) {
     this.videoElement = videoElement;
     this.stream = null;
+    this.facingMode = options.facingMode ?? "user";
     this.mirrorPreview = options.mirrorPreview ?? true;
     this.mirrorCapture = options.mirrorCapture ?? true;
   }
@@ -17,7 +18,7 @@ export class CameraService {
 
     this.stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "user",
+        facingMode: { ideal: this.facingMode },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       },
@@ -27,6 +28,28 @@ export class CameraService {
     this.videoElement.srcObject = this.stream;
     await this.videoElement.play();
 
+    this.videoElement.classList.toggle("mirrored-video", this.mirrorPreview);
+  }
+
+  async restart() {
+    this.stop();
+    await this.start();
+  }
+
+  async setFacingMode(mode) {
+    const normalized = mode === "environment" ? "environment" : "user";
+    if (normalized === this.facingMode) {
+      return;
+    }
+
+    this.facingMode = normalized;
+    await this.restart();
+  }
+
+  setMirror(enabled) {
+    const value = Boolean(enabled);
+    this.mirrorPreview = value;
+    this.mirrorCapture = value;
     this.videoElement.classList.toggle("mirrored-video", this.mirrorPreview);
   }
 
