@@ -50,6 +50,7 @@ const elements = {
   captureFlash: document.getElementById("captureFlash"),
   modal: document.getElementById("previewModal"),
   modalThumbGrid: document.getElementById("modalThumbGrid"),
+  modalPreviewImage: document.getElementById("modalPreviewImage"),
   retakeBtn: document.getElementById("retakeBtn"),
   proceedToEditBtn: document.getElementById("proceedToEditBtn"),
   editPreviewCanvas: document.getElementById("editPreviewCanvas"),
@@ -103,6 +104,7 @@ const cameraService = new CameraService(elements.cameraFeed, {
 let isCapturing = false;
 let renderTimer = 0;
 let renderToken = 0;
+let selectedModalPhotoIndex = 0;
 const carouselState = {
   index: 0,
   timer: 0
@@ -304,6 +306,25 @@ function updateDeviceOrientation() {
 }
 
 function getCaptureDimensions() {
+  const sourceWidth = Number(elements.cameraFeed?.videoWidth || 0);
+  const sourceHeight = Number(elements.cameraFeed?.videoHeight || 0);
+
+  if (sourceWidth > 0 && sourceHeight > 0) {
+    const longestSide = 1280;
+
+    if (sourceWidth >= sourceHeight) {
+      return {
+        width: longestSide,
+        height: Math.max(1, Math.round((longestSide * sourceHeight) / sourceWidth))
+      };
+    }
+
+    return {
+      width: Math.max(1, Math.round((longestSide * sourceWidth) / sourceHeight)),
+      height: longestSide
+    };
+  }
+
   if (appState.deviceOrientation === "portrait") {
     return { width: 960, height: 1280 };
   }
@@ -429,17 +450,60 @@ function getThumbDataUrl(photo, useCurrentFilters = false) {
   return previewCanvas.toDataURL("image/jpeg", 0.9);
 }
 
+function updateModalPreviewImage(useCurrentFilters = true) {
+  if (!elements.modalPreviewImage) {
+    return;
+  }
+
+  if (!appState.photos.length) {
+    elements.modalPreviewImage.removeAttribute("src");
+    elements.modalPreviewImage.alt = "No captured shot available";
+    return;
+  }
+
+  selectedModalPhotoIndex = Math.max(
+    0,
+    Math.min(selectedModalPhotoIndex, appState.photos.length - 1)
+  );
+
+  const selectedPhoto = appState.photos[selectedModalPhotoIndex];
+  elements.modalPreviewImage.src = getThumbDataUrl(selectedPhoto, useCurrentFilters);
+  elements.modalPreviewImage.alt = `Captured shot ${selectedModalPhotoIndex + 1} preview`;
+
+  Array.from(elements.modalThumbGrid.querySelectorAll(".thumb-item")).forEach((node) => {
+    node.classList.toggle("active", Number(node.dataset.index) === selectedModalPhotoIndex);
+  });
+}
+
 function renderPhotoThumbs(target, options = {}) {
-  const { useCurrentFilters = false } = options;
+  const { useCurrentFilters = false, selectedIndex = -1, onThumbSelect = null } = options;
   target.innerHTML = "";
 
   appState.photos.forEach((photo, index) => {
     const node = elements.thumbTemplate.content.firstElementChild.cloneNode(true);
     const orientationClass = photo.height > photo.width ? "is-portrait" : "is-landscape";
     node.classList.add(orientationClass);
+    node.dataset.index = String(index);
+    node.classList.toggle("active", index === selectedIndex);
     const image = node.querySelector("img");
     image.src = getThumbDataUrl(photo, useCurrentFilters);
     image.alt = `Captured shot ${index + 1}`;
+
+    if (typeof onThumbSelect === "function") {
+      node.setAttribute("role", "button");
+      node.setAttribute("tabindex", "0");
+      node.setAttribute("aria-label", `Show captured shot ${index + 1}`);
+      node.addEventListener("click", () => {
+        onThumbSelect(index);
+      });
+      node.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onThumbSelect(index);
+        }
+      });
+    }
+
     target.appendChild(node);
   });
 }
@@ -504,7 +568,15 @@ function resetEditorUi() {
 
 function refreshCapturedThumbPreviews() {
   renderPhotoThumbs(elements.capturedThumbs, { useCurrentFilters: true });
-  renderPhotoThumbs(elements.modalThumbGrid, { useCurrentFilters: true });
+  renderPhotoThumbs(elements.modalThumbGrid, {
+    useCurrentFilters: true,
+    selectedIndex: selectedModalPhotoIndex,
+    onThumbSelect: (index) => {
+      selectedModalPhotoIndex = index;
+      updateModalPreviewImage(true);
+    }
+  });
+  updateModalPreviewImage(true);
 }
 
 function applyLayoutSelection(layout, options = {}) {
@@ -841,6 +913,7 @@ function renderGallery() {
 function beginNewSession() {
   bumpAnalytics("sessions", 1);
   resetCaptureSession();
+  selectedModalPhotoIndex = 0;
   resetEditorDefaults();
   resetEditorUi();
   closeModal();
@@ -848,6 +921,7 @@ function beginNewSession() {
   setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
   renderPhotoThumbs(elements.capturedThumbs);
   renderPhotoThumbs(elements.modalThumbGrid);
+  updateModalPreviewImage(false);
   goToCamera();
 }
 
@@ -911,7 +985,8 @@ async function runCaptureFlow() {
 
     bumpAnalytics("captures", totalShots);
 
-    renderPhotoThumbs(elements.modalThumbGrid, { useCurrentFilters: true });
+    selectedModalPhotoIndex = 0;
+    refreshCapturedThumbPreviews();
     openModal();
     setShotStatus("Capture complete. Review before editing.");
   } catch (error) {
@@ -1176,6 +1251,8 @@ function bindMainActions() {
   elements.retakeBtn.addEventListener("click", () => {
     closeModal();
     resetCaptureSession();
+    selectedModalPhotoIndex = 0;
+    refreshCapturedThumbPreviews();
     setShotStatus("Retake enabled");
   });
 

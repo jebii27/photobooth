@@ -32,7 +32,7 @@ function drawContainImage(context, image, slot) {
     drawX = slot.x + (slot.width - drawWidth) / 2;
   }
 
-  context.fillStyle = "rgba(244, 248, 255, 0.95)";
+  context.fillStyle = "#f8fafc";
   context.fillRect(slot.x, slot.y, slot.width, slot.height);
 
   context.drawImage(
@@ -58,120 +58,39 @@ function buildFilterString(filters) {
 }
 
 function drawBackdrop(context, preset) {
-  const gradient = context.createLinearGradient(0, 0, preset.width, preset.height);
-  gradient.addColorStop(0, "#f8fbff");
-  gradient.addColorStop(1, "#edf3fb");
-  context.fillStyle = gradient;
+  context.fillStyle = "#ffffff";
   context.fillRect(0, 0, preset.width, preset.height);
-
-  context.strokeStyle = "rgba(117, 150, 185, 0.13)";
-  context.lineWidth = 1;
-
-  for (let y = 0; y <= preset.height; y += 40) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(preset.width, y);
-    context.stroke();
-  }
 }
 
 function drawNeonFrame(context, preset) {
   context.save();
-
-  const outerGradient = context.createLinearGradient(0, 0, preset.width, preset.height);
-  outerGradient.addColorStop(0, "#18d6bd");
-  outerGradient.addColorStop(1, "#4e95ff");
-
-  context.strokeStyle = outerGradient;
-  context.lineWidth = 18;
-  drawRoundedRect(context, 28, 28, preset.width - 56, preset.height - 56, 26);
+  context.strokeStyle = "rgba(15, 23, 42, 0.9)";
+  context.lineWidth = 4;
+  drawRoundedRect(context, 20, 20, preset.width - 40, preset.height - 40, 20);
   context.stroke();
-
-  preset.slots.forEach((slot) => {
-    context.strokeStyle = "rgba(8, 191, 165, 0.74)";
-    context.lineWidth = 10;
-    drawRoundedRect(
-      context,
-      slot.x - 8,
-      slot.y - 8,
-      slot.width + 16,
-      slot.height + 16,
-      16
-    );
-    context.stroke();
-  });
-
   context.restore();
 }
 
 function drawFilmFrame(context, preset) {
   context.save();
-
-  context.strokeStyle = "rgba(24, 34, 45, 0.92)";
-  context.lineWidth = 16;
-  drawRoundedRect(context, 24, 24, preset.width - 48, preset.height - 48, 20);
+  context.strokeStyle = "rgba(17, 24, 39, 0.92)";
+  context.lineWidth = 8;
+  drawRoundedRect(context, 18, 18, preset.width - 36, preset.height - 36, 16);
   context.stroke();
-
-  context.fillStyle = "rgba(35, 44, 57, 0.88)";
-  const holeWidth = 22;
-  const holeHeight = 16;
-  const spacing = 36;
-
-  for (let y = 62; y < preset.height - 62; y += spacing) {
-    context.fillRect(14, y, holeWidth, holeHeight);
-    context.fillRect(preset.width - 36, y, holeWidth, holeHeight);
-  }
-
-  preset.slots.forEach((slot) => {
-    context.strokeStyle = "rgba(255, 255, 255, 0.94)";
-    context.lineWidth = 9;
-    drawRoundedRect(
-      context,
-      slot.x - 6,
-      slot.y - 6,
-      slot.width + 12,
-      slot.height + 12,
-      12
-    );
-    context.stroke();
-  });
-
   context.restore();
 }
 
 function drawStudioFrame(context, preset) {
   context.save();
-
-  context.strokeStyle = "rgba(10, 33, 72, 0.7)";
-  context.lineWidth = 6;
-  drawRoundedRect(context, 40, 40, preset.width - 80, preset.height - 80, 24);
+  context.strokeStyle = "rgba(30, 41, 59, 0.5)";
+  context.lineWidth = 4;
+  drawRoundedRect(context, 26, 26, preset.width - 52, preset.height - 52, 20);
   context.stroke();
 
-  context.strokeStyle = "rgba(74, 123, 189, 0.45)";
+  context.strokeStyle = "rgba(30, 41, 59, 0.24)";
   context.lineWidth = 2;
-  drawRoundedRect(context, 58, 58, preset.width - 116, preset.height - 116, 20);
+  drawRoundedRect(context, 44, 44, preset.width - 88, preset.height - 88, 16);
   context.stroke();
-
-  const cornerLength = 54;
-  const cornerOffset = 56;
-  context.strokeStyle = "rgba(57, 124, 210, 0.65)";
-  context.lineWidth = 5;
-
-  const corners = [
-    [cornerOffset, cornerOffset, 1, 1],
-    [preset.width - cornerOffset, cornerOffset, -1, 1],
-    [cornerOffset, preset.height - cornerOffset, 1, -1],
-    [preset.width - cornerOffset, preset.height - cornerOffset, -1, -1]
-  ];
-
-  corners.forEach(([x, y, dx, dy]) => {
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + cornerLength * dx, y);
-    context.moveTo(x, y);
-    context.lineTo(x, y + cornerLength * dy);
-    context.stroke();
-  });
 
   context.restore();
 }
@@ -227,14 +146,14 @@ function drawBranding(context, preset, branding = {}) {
   if (eventTitle) {
     const titleSize = Math.round(Math.max(18, Math.min(44, preset.width * 0.022)));
     context.font = `700 ${titleSize}px "Plus Jakarta Sans", "Segoe UI", sans-serif`;
-    context.fillStyle = "rgba(36, 62, 79, 0.92)";
+    context.fillStyle = "rgba(15, 23, 42, 0.95)";
     context.fillText(eventTitle, centerX, titleY);
   }
 
   if (detailParts.length) {
     const detailSize = Math.round(Math.max(14, Math.min(30, preset.width * 0.012)));
     context.font = `600 ${detailSize}px "Plus Jakarta Sans", "Segoe UI", sans-serif`;
-    context.fillStyle = "rgba(56, 88, 109, 0.78)";
+    context.fillStyle = "rgba(71, 85, 105, 0.86)";
     context.fillText(detailParts.join(" | "), centerX, detailY);
   }
 
@@ -312,6 +231,13 @@ export async function composeStrip({
     drawRoundedRect(context, slot.x, slot.y, slot.width, slot.height, 14);
     context.clip();
     drawContainImage(context, source, slot);
+    context.restore();
+
+    context.save();
+    context.strokeStyle = "rgba(15, 23, 42, 0.16)";
+    context.lineWidth = 3;
+    drawRoundedRect(context, slot.x + 1.5, slot.y + 1.5, slot.width - 3, slot.height - 3, 14);
+    context.stroke();
     context.restore();
   });
 

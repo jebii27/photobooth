@@ -77,17 +77,17 @@ export class CameraService {
     const sourceRatio = sourceWidth / sourceHeight;
     const targetRatio = targetWidth / targetHeight;
 
-    let sampleWidth = sourceWidth;
-    let sampleHeight = sourceHeight;
-    let sampleX = 0;
-    let sampleY = 0;
+    let drawWidth = targetWidth;
+    let drawHeight = targetHeight;
+    let drawX = 0;
+    let drawY = 0;
 
     if (sourceRatio > targetRatio) {
-      sampleWidth = sourceHeight * targetRatio;
-      sampleX = (sourceWidth - sampleWidth) / 2;
+      drawHeight = targetWidth / sourceRatio;
+      drawY = (targetHeight - drawHeight) / 2;
     } else {
-      sampleHeight = sourceWidth / targetRatio;
-      sampleY = (sourceHeight - sampleHeight) / 2;
+      drawWidth = targetHeight * sourceRatio;
+      drawX = (targetWidth - drawWidth) / 2;
     }
 
     const frameCanvas = document.createElement("canvas");
@@ -97,6 +97,8 @@ export class CameraService {
     const context = frameCanvas.getContext("2d", { alpha: false });
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
+    context.fillStyle = "#f6f7f9";
+    context.fillRect(0, 0, targetWidth, targetHeight);
 
     if (this.mirrorCapture) {
       context.save();
@@ -104,27 +106,27 @@ export class CameraService {
       context.scale(-1, 1);
       context.drawImage(
         this.videoElement,
-        sampleX,
-        sampleY,
-        sampleWidth,
-        sampleHeight,
         0,
         0,
-        targetWidth,
-        targetHeight
+        sourceWidth,
+        sourceHeight,
+        targetWidth - drawX - drawWidth,
+        drawY,
+        drawWidth,
+        drawHeight
       );
       context.restore();
     } else {
       context.drawImage(
         this.videoElement,
-        sampleX,
-        sampleY,
-        sampleWidth,
-        sampleHeight,
         0,
         0,
-        targetWidth,
-        targetHeight
+        sourceWidth,
+        sourceHeight,
+        drawX,
+        drawY,
+        drawWidth,
+        drawHeight
       );
     }
 
