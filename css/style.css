@@ -808,8 +808,12 @@ select.filter-select:focus-visible {
 .modal-thumb-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(86px, 112px));
+  justify-content: start;
   gap: 8px;
+  max-height: min(220px, 30vh);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .thumb-item {
@@ -855,11 +859,10 @@ select.filter-select:focus-visible {
   border-radius: 12px;
   border: 1px solid rgba(163, 191, 223, 0.32);
   background: #fff;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: center;
 }
 
 .preview-canvas-wrap,
@@ -873,6 +876,16 @@ select.filter-select:focus-visible {
   display: grid;
   place-items: center;
   overflow: hidden;
+}
+
+@media (min-width: 1081px) {
+  .preview-canvas-wrap.is-portrait-layout,
+  .download-canvas-wrap.is-portrait-layout {
+    --portrait-preview-height: clamp(420px, 68vh, 960px);
+    height: var(--portrait-preview-height);
+    width: min(100%, calc(var(--portrait-preview-height) * var(--layout-ratio, 0.74)));
+    margin-inline: auto;
+  }
 }
 
 .download-preview {
@@ -1283,7 +1296,8 @@ button:disabled {
   }
 
   .modal-thumb-grid {
-    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(80px, 96px));
+    max-height: min(200px, 28vh);
   }
 }
 
@@ -1328,7 +1342,8 @@ button:disabled {
   }
 
   .modal-thumb-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(72px, 88px));
+    max-height: min(170px, 25vh);
     gap: 7px;
   }
 

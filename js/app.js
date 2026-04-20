@@ -619,15 +619,112 @@ function applyLayoutSelection(layout, options = {}) {
   if (elements.landingSelectionText) {
     elements.landingSelectionText.textContent = `Selected: ${LAYOUT_PRESETS[layout].label}`;
   }
+
+  syncPreviewLayoutMode();
+
+  if (appState.finalCanvas) {
+    window.requestAnimationFrame(() => {
+      redrawActivePreviewCanvas();
+    });
+  }
+}
+
+function syncPreviewLayoutMode() {
+  const preset = LAYOUT_PRESETS[appState.layout] || LAYOUT_PRESETS.strip4;
+  const ratio = preset.width / preset.height;
+  const isPortraitLayout = ratio < 1;
+
+  [
+    elements.editPreviewCanvas?.parentElement,
+    elements.finalCanvas?.parentElement
+  ].forEach((container) => {
+    if (!container) {
+      return;
+    }
+
+    container.classList.toggle("is-portrait-layout", isPortraitLayout);
+    container.classList.toggle("is-landscape-layout", !isPortraitLayout);
+    container.style.setProperty("--layout-ratio", String(ratio));
+  });
 }
 
 function copyCanvas(source, target) {
-  target.width = source.width;
-  target.height = source.height;
+  if (!source || !target) {
+    return;
+  }
+
+  const targetRect = target.getBoundingClientRect();
+  const parentRect = target.parentElement?.getBoundingClientRect();
+  const cssWidth = Math.max(
+    1,
+    Math.floor(targetRect.width || parentRect?.width || target.clientWidth || source.width)
+  );
+  const cssHeight = Math.max(
+    1,
+    Math.floor(targetRect.height || parentRect?.height || target.clientHeight || source.height)
+  );
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  const pixelWidth = Math.round(cssWidth * dpr);
+  const pixelHeight = Math.round(cssHeight * dpr);
+
+  if (target.width !== pixelWidth) {
+    target.width = pixelWidth;
+  }
+
+  if (target.height !== pixelHeight) {
+    target.height = pixelHeight;
+  }
 
   const context = target.getContext("2d", { alpha: false });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
   context.clearRect(0, 0, target.width, target.height);
-  context.drawImage(source, 0, 0);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, target.width, target.height);
+
+  const sourceRatio = source.width / source.height;
+  const targetRatio = target.width / target.height;
+
+  let drawWidth = target.width;
+  let drawHeight = target.height;
+  let drawX = 0;
+  let drawY = 0;
+
+  if (sourceRatio > targetRatio) {
+    drawHeight = drawWidth / sourceRatio;
+    drawY = (target.height - drawHeight) / 2;
+  } else {
+    drawWidth = drawHeight * sourceRatio;
+    drawX = (target.width - drawWidth) / 2;
+  }
+
+  context.drawImage(
+    source,
+    0,
+    0,
+    source.width,
+    source.height,
+    drawX,
+    drawY,
+    drawWidth,
+    drawHeight
+  );
+}
+
+function redrawActivePreviewCanvas() {
+  if (!appState.finalCanvas) {
+    return;
+  }
+
+  if (appState.currentStep === "edit") {
+    copyCanvas(appState.finalCanvas, elements.editPreviewCanvas);
+    return;
+  }
+
+  if (appState.currentStep === "download") {
+    copyCanvas(appState.finalCanvas, elements.finalCanvas);
+  }
 }
 
 async function renderComposedStrip() {
@@ -1349,9 +1446,16 @@ function bindMainActions() {
 }
 
 function initialize() {
+  let resizeRenderTimer = 0;
+
   const handleViewportOrientationChange = () => {
     const previous = appState.deviceOrientation;
     updateDeviceOrientation();
+
+    window.clearTimeout(resizeRenderTimer);
+    resizeRenderTimer = window.setTimeout(() => {
+      redrawActivePreviewCanvas();
+    }, 80);
 
     if (previous !== appState.deviceOrientation) {
       refreshCapturedThumbPreviews();
