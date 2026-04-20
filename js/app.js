@@ -45,6 +45,8 @@ const elements = {
   cameraFilterPreset: document.getElementById("cameraFilterPreset"),
   cameraFacingMode: document.getElementById("cameraFacingMode"),
   mirrorPreviewToggle: document.getElementById("mirrorPreviewToggle"),
+  livePhotoToggle: document.getElementById("livePhotoToggle"),
+  livePhotoHint: document.getElementById("livePhotoHint"),
   countdownOverlay: document.getElementById("countdownOverlay"),
   shotStatus: document.getElementById("shotStatus"),
   captureFlash: document.getElementById("captureFlash"),
@@ -72,6 +74,10 @@ const elements = {
   exportInfo: document.getElementById("exportInfo"),
   shareStripBtn: document.getElementById("shareStripBtn"),
   shareStatus: document.getElementById("shareStatus"),
+  livePhotoExportGroup: document.getElementById("livePhotoExportGroup"),
+  livePhotoPreview: document.getElementById("livePhotoPreview"),
+  downloadLiveBtn: document.getElementById("downloadLiveBtn"),
+  livePhotoExportHint: document.getElementById("livePhotoExportHint"),
   leadName: document.getElementById("leadName"),
   leadEmail: document.getElementById("leadEmail"),
   leadPhone: document.getElementById("leadPhone"),
@@ -171,6 +177,117 @@ function setHintStatus(target, message, isError = false) {
 
   target.textContent = message;
   target.style.color = isError ? "#b64f5a" : "var(--text-muted)";
+}
+
+function isLivePhotoFeatureSupported() {
+  return typeof MediaRecorder !== "undefined" &&
+    Boolean(navigator.mediaDevices) &&
+    typeof navigator.mediaDevices.getUserMedia === "function";
+}
+
+function revokeLivePhotoUrl() {
+  if (!appState.livePhoto.url) {
+    return;
+  }
+
+  URL.revokeObjectURL(appState.livePhoto.url);
+  appState.livePhoto.url = "";
+}
+
+function getLivePhotoFileExtension(mimeType) {
+  if (mimeType.includes("mp4")) {
+    return "mp4";
+  }
+
+  if (mimeType.includes("ogg")) {
+    return "ogv";
+  }
+
+  return "webm";
+}
+
+function renderLivePhotoPreview() {
+  if (!elements.livePhotoPreview || !elements.downloadLiveBtn || !elements.livePhotoExportHint) {
+    return;
+  }
+
+  const hasClip = Boolean(appState.livePhoto.blob) && Boolean(appState.livePhoto.url);
+
+  elements.downloadLiveBtn.disabled = !hasClip;
+  elements.livePhotoPreview.classList.toggle("hidden", !hasClip);
+
+  if (hasClip) {
+    if (elements.livePhotoPreview.src !== appState.livePhoto.url) {
+      elements.livePhotoPreview.src = appState.livePhoto.url;
+    }
+
+    setHintStatus(elements.livePhotoExportHint, "Live Photo ready. Download your motion clip.");
+    return;
+  }
+
+  elements.livePhotoPreview.pause();
+  elements.livePhotoPreview.removeAttribute("src");
+  elements.livePhotoPreview.load();
+  setHintStatus(
+    elements.livePhotoExportHint,
+    "Capture with Live Photo enabled to preview and download the clip."
+  );
+}
+
+function setLivePhotoBlob(blob) {
+  revokeLivePhotoUrl();
+
+  if (!blob || blob.size <= 0) {
+    appState.livePhoto.blob = null;
+    appState.livePhoto.mimeType = "";
+    renderLivePhotoPreview();
+    return;
+  }
+
+  appState.livePhoto.blob = blob;
+  appState.livePhoto.mimeType = blob.type || "video/webm";
+  appState.livePhoto.url = URL.createObjectURL(blob);
+  renderLivePhotoPreview();
+}
+
+function syncLivePhotoControls() {
+  if (!elements.livePhotoToggle || !elements.livePhotoHint) {
+    return;
+  }
+
+  const isSupported = isLivePhotoFeatureSupported();
+
+  if (!isSupported) {
+    appState.livePhoto.enabled = false;
+  }
+
+  elements.livePhotoToggle.disabled = !isSupported;
+  elements.livePhotoToggle.checked = appState.livePhoto.enabled;
+
+  if (!isSupported) {
+    setHintStatus(elements.livePhotoHint, "Live Photo is not supported by this browser.", true);
+    return;
+  }
+
+  if (appState.livePhoto.enabled) {
+    setHintStatus(elements.livePhotoHint, "Live Photo enabled. A clip will be recorded during capture.");
+    return;
+  }
+
+  setHintStatus(elements.livePhotoHint, "Disabled. Enable to capture a Live Photo clip.");
+}
+
+function downloadLivePhotoClip() {
+  if (!appState.livePhoto.blob) {
+    setHintStatus(elements.livePhotoExportHint, "Capture a session with Live Photo enabled first.", true);
+    return;
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const extension = getLivePhotoFileExtension(appState.livePhoto.mimeType || "video/webm");
+
+  downloadBlob(appState.livePhoto.blob, `lumina-live-photo-${stamp}.${extension}`);
+  setHintStatus(elements.livePhotoExportHint, "Live Photo clip downloaded.");
 }
 
 function normalizeTextValue(value, maxLength = 64) {
@@ -466,9 +583,16 @@ function updateModalPreviewImage(useCurrentFilters = true) {
     return;
   }
 
+  const previewWrap = elements.modalPreviewImage.parentElement;
+
   if (!appState.photos.length) {
     elements.modalPreviewImage.removeAttribute("src");
     elements.modalPreviewImage.alt = "No captured shot available";
+
+    if (previewWrap) {
+      previewWrap.classList.remove("is-portrait-shot", "is-landscape-shot");
+    }
+
     return;
   }
 
@@ -478,6 +602,13 @@ function updateModalPreviewImage(useCurrentFilters = true) {
   );
 
   const selectedPhoto = appState.photos[selectedModalPhotoIndex];
+  const isPortraitShot = selectedPhoto.height > selectedPhoto.width;
+
+  if (previewWrap) {
+    previewWrap.classList.toggle("is-portrait-shot", isPortraitShot);
+    previewWrap.classList.toggle("is-landscape-shot", !isPortraitShot);
+  }
+
   elements.modalPreviewImage.src = getThumbDataUrl(selectedPhoto, useCurrentFilters);
   elements.modalPreviewImage.alt = `Captured shot ${selectedModalPhotoIndex + 1} preview`;
 
@@ -543,6 +674,7 @@ async function ensureCamera() {
     cameraService.setMirror(appState.camera.mirror);
     await cameraService.start();
     syncCameraControls();
+    syncLivePhotoControls();
     applyCameraPreviewFilter();
     setShotStatus("Camera ready");
     return true;
@@ -633,6 +765,7 @@ function syncPreviewLayoutMode() {
   const preset = LAYOUT_PRESETS[appState.layout] || LAYOUT_PRESETS.strip4;
   const ratio = preset.width / preset.height;
   const isPortraitLayout = ratio < 1;
+  const isUltraPortraitLayout = ratio <= 0.55;
 
   [
     elements.editPreviewCanvas?.parentElement,
@@ -644,6 +777,7 @@ function syncPreviewLayoutMode() {
 
     container.classList.toggle("is-portrait-layout", isPortraitLayout);
     container.classList.toggle("is-landscape-layout", !isPortraitLayout);
+    container.classList.toggle("is-ultra-portrait-layout", isUltraPortraitLayout);
     container.style.setProperty("--layout-ratio", String(ratio));
   });
 }
@@ -1023,10 +1157,13 @@ function renderGallery() {
 
 function beginNewSession() {
   bumpAnalytics("sessions", 1);
+  revokeLivePhotoUrl();
   resetCaptureSession();
   selectedModalPhotoIndex = 0;
   resetEditorDefaults();
   resetEditorUi();
+  syncLivePhotoControls();
+  renderLivePhotoPreview();
   closeModal();
   setHintStatus(elements.shareStatus, "Use native sharing on supported devices and browsers.");
   setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
@@ -1054,6 +1191,8 @@ async function openDownloadStep() {
     copyCanvas(appState.finalCanvas, elements.finalCanvas);
   }
 
+  renderLivePhotoPreview();
+
   autoSaveCurrentResult();
   renderGallery();
 }
@@ -1072,13 +1211,26 @@ async function runCaptureFlow() {
 
   isCapturing = true;
   elements.captureBtn.disabled = true;
+  let liveRecordingStarted = false;
 
   try {
     updateDeviceOrientation();
+    revokeLivePhotoUrl();
     resetCaptureSession();
+    renderLivePhotoPreview();
     const captureDimensions = getCaptureDimensions();
 
     const totalShots = getShotCount(appState.layout);
+
+    if (appState.livePhoto.enabled) {
+      liveRecordingStarted = await cameraService.startLivePhotoRecording();
+
+      if (liveRecordingStarted) {
+        setHintStatus(elements.livePhotoHint, "Live Photo recording in progress...");
+      } else {
+        setHintStatus(elements.livePhotoHint, "Could not start Live Photo recording on this browser.", true);
+      }
+    }
 
     for (let index = 1; index <= totalShots; index += 1) {
       await runCountdown(totalShots, index);
@@ -1094,6 +1246,18 @@ async function runCaptureFlow() {
       await wait(380);
     }
 
+    if (liveRecordingStarted) {
+      const livePhotoBlob = await cameraService.stopLivePhotoRecording();
+      liveRecordingStarted = false;
+
+      if (livePhotoBlob && livePhotoBlob.size > 0) {
+        setLivePhotoBlob(livePhotoBlob);
+        setHintStatus(elements.livePhotoHint, "Live Photo captured.");
+      } else {
+        setHintStatus(elements.livePhotoHint, "Live Photo could not be generated. Try again.", true);
+      }
+    }
+
     bumpAnalytics("captures", totalShots);
 
     selectedModalPhotoIndex = 0;
@@ -1103,6 +1267,13 @@ async function runCaptureFlow() {
   } catch (error) {
     setShotStatus(error.message || "Failed during capture", true);
   } finally {
+    if (liveRecordingStarted) {
+      const livePhotoBlob = await cameraService.stopLivePhotoRecording();
+      if (!appState.livePhoto.blob && livePhotoBlob && livePhotoBlob.size > 0) {
+        setLivePhotoBlob(livePhotoBlob);
+      }
+    }
+
     isCapturing = false;
     elements.captureBtn.disabled = false;
     elements.countdownOverlay.classList.add("hidden");
@@ -1285,6 +1456,19 @@ function bindCaptureControls() {
       setShotStatus(shouldMirror ? "Mirror mode enabled" : "Mirror mode disabled");
     });
   }
+
+  if (elements.livePhotoToggle) {
+    elements.livePhotoToggle.addEventListener("change", (event) => {
+      if (!isLivePhotoFeatureSupported()) {
+        appState.livePhoto.enabled = false;
+        syncLivePhotoControls();
+        return;
+      }
+
+      appState.livePhoto.enabled = Boolean(event.target.checked);
+      syncLivePhotoControls();
+    });
+  }
 }
 
 function bindLandingExperience() {
@@ -1371,7 +1555,10 @@ function bindMainActions() {
 
   elements.retakeBtn.addEventListener("click", () => {
     closeModal();
+    revokeLivePhotoUrl();
     resetCaptureSession();
+    syncLivePhotoControls();
+    renderLivePhotoPreview();
     selectedModalPhotoIndex = 0;
     refreshCapturedThumbPreviews();
     setShotStatus("Retake enabled");
@@ -1396,6 +1583,12 @@ function bindMainActions() {
   elements.downloadJpgBtn.addEventListener("click", () => {
     downloadCurrent("jpg");
   });
+
+  if (elements.downloadLiveBtn) {
+    elements.downloadLiveBtn.addEventListener("click", () => {
+      downloadLivePhotoClip();
+    });
+  }
 
   elements.printBtn.addEventListener("click", () => {
     printCurrentStrip();
@@ -1476,6 +1669,8 @@ function initialize() {
   }
   applyLayoutSelection(appState.layout);
   resetEditorUi();
+  syncLivePhotoControls();
+  renderLivePhotoPreview();
   refreshAnalyticsDashboard();
   setHintStatus(elements.shareStatus, "Use native sharing on supported devices and browsers.");
   setHintStatus(elements.leadStatus, "Leads and analytics are stored locally on this device.");
@@ -1492,6 +1687,7 @@ function initialize() {
 }
 
 window.addEventListener("beforeunload", () => {
+  revokeLivePhotoUrl();
   cameraService.stop();
   stopCarouselAuto();
 });

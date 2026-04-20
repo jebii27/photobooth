@@ -119,6 +119,15 @@
               </label>
             </div>
 
+            <div class="control-group">
+              <span>Live Photo</span>
+              <label class="toggle">
+                <input id="livePhotoToggle" type="checkbox" />
+                Record a short motion clip while capturing
+              </label>
+              <p id="livePhotoHint" class="hint">Disabled. Enable to capture a Live Photo clip.</p>
+            </div>
+
             <p class="hint">Multi-shot layouts take four frames automatically.</p>
           </aside>
         </div>
@@ -235,6 +244,22 @@
               <span>Instant Sharing</span>
               <button id="shareStripBtn" class="secondary-btn" type="button">Share Strip</button>
               <p id="shareStatus" class="hint">Use native sharing on supported devices and browsers.</p>
+            </div>
+
+            <div id="livePhotoExportGroup" class="control-group">
+              <span>Live Photo Clip</span>
+              <video
+                id="livePhotoPreview"
+                class="live-photo-preview hidden"
+                playsinline
+                muted
+                loop
+                controls
+              ></video>
+              <button id="downloadLiveBtn" class="secondary-btn" type="button" disabled>
+                Download Live Clip
+              </button>
+              <p id="livePhotoExportHint" class="hint">Capture with Live Photo enabled to preview and download the clip.</p>
             </div>
 
             <div class="control-group lead-capture-group">

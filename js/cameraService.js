@@ -5,6 +5,123 @@ export class CameraService {
     this.facingMode = options.facingMode ?? "user";
     this.mirrorPreview = options.mirrorPreview ?? true;
     this.mirrorCapture = options.mirrorCapture ?? true;
+    this.liveRecorder = null;
+    this.liveChunks = [];
+    this.liveStopPromise = null;
+    this.liveStopResolver = null;
+    this.liveMimeType = "";
+  }
+
+  resolveLivePhotoMimeType() {
+    if (typeof MediaRecorder === "undefined") {
+      return "";
+    }
+
+    const preferredMimeTypes = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm;codecs=vp9",
+      "video/webm;codecs=vp8",
+      "video/webm"
+    ];
+
+    return preferredMimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
+  }
+
+  canRecordLivePhoto() {
+    return Boolean(this.stream) && typeof MediaRecorder !== "undefined";
+  }
+
+  async startLivePhotoRecording() {
+    if (!this.canRecordLivePhoto()) {
+      return false;
+    }
+
+    if (this.liveRecorder && this.liveRecorder.state === "recording") {
+      return true;
+    }
+
+    if (this.liveRecorder && this.liveRecorder.state !== "inactive") {
+      await this.stopLivePhotoRecording();
+    }
+
+    this.liveChunks = [];
+    const resolvedMimeType = this.resolveLivePhotoMimeType();
+
+    try {
+      this.liveRecorder = resolvedMimeType
+        ? new MediaRecorder(this.stream, { mimeType: resolvedMimeType })
+        : new MediaRecorder(this.stream);
+    } catch (error) {
+      this.liveRecorder = null;
+      this.liveMimeType = "";
+      return false;
+    }
+
+    this.liveMimeType = this.liveRecorder.mimeType || resolvedMimeType || "video/webm";
+
+    this.liveStopPromise = new Promise((resolve) => {
+      this.liveStopResolver = resolve;
+    });
+
+    this.liveRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        this.liveChunks.push(event.data);
+      }
+    };
+
+    this.liveRecorder.onerror = () => {
+      const resolver = this.liveStopResolver;
+      this.liveStopResolver = null;
+      this.liveChunks = [];
+      this.liveRecorder = null;
+
+      if (resolver) {
+        resolver(null);
+      }
+    };
+
+    this.liveRecorder.onstop = () => {
+      const resolver = this.liveStopResolver;
+      this.liveStopResolver = null;
+
+      const blob = this.liveChunks.length
+        ? new Blob(this.liveChunks, { type: this.liveMimeType || "video/webm" })
+        : null;
+
+      this.liveChunks = [];
+      this.liveRecorder = null;
+
+      if (resolver) {
+        resolver(blob);
+      }
+    };
+
+    this.liveRecorder.start(250);
+    return true;
+  }
+
+  async stopLivePhotoRecording() {
+    if (!this.liveRecorder) {
+      return null;
+    }
+
+    if (this.liveRecorder.state !== "inactive") {
+      this.liveRecorder.stop();
+    }
+
+    const pendingStopPromise = this.liveStopPromise;
+    this.liveStopPromise = null;
+
+    if (!pendingStopPromise) {
+      return null;
+    }
+
+    try {
+      return await pendingStopPromise;
+    } catch (error) {
+      return null;
+    }
   }
 
   async start() {
@@ -54,6 +171,10 @@ export class CameraService {
   }
 
   stop() {
+    if (this.liveRecorder && this.liveRecorder.state !== "inactive") {
+      this.liveRecorder.stop();
+    }
+
     if (!this.stream) {
       return;
     }

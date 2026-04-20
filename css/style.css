@@ -762,6 +762,16 @@ select.filter-select {
   font: inherit;
 }
 
+.live-photo-preview {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #0f172a;
+  min-height: 180px;
+  max-height: 280px;
+  object-fit: contain;
+}
+
 input[type="text"]:focus-visible {
   outline: 2px solid rgba(25, 214, 191, 0.55);
   outline-offset: 1px;
@@ -808,12 +818,18 @@ select.filter-select:focus-visible {
 .modal-thumb-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(86px, 112px));
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
   justify-content: start;
+  justify-items: start;
+  align-content: start;
   gap: 8px;
   max-height: min(220px, 30vh);
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.modal-thumb-grid .thumb-item {
+  width: min(112px, 100%);
 }
 
 .thumb-item {
@@ -881,10 +897,13 @@ select.filter-select:focus-visible {
 @media (min-width: 1081px) {
   .preview-canvas-wrap.is-portrait-layout,
   .download-canvas-wrap.is-portrait-layout {
-    --portrait-preview-height: clamp(420px, 68vh, 960px);
-    height: var(--portrait-preview-height);
-    width: min(100%, calc(var(--portrait-preview-height) * var(--layout-ratio, 0.74)));
-    margin-inline: auto;
+    height: clamp(500px, 76vh, 1120px);
+    width: 100%;
+  }
+
+  .preview-canvas-wrap.is-ultra-portrait-layout,
+  .download-canvas-wrap.is-ultra-portrait-layout {
+    height: clamp(560px, 84vh, 1320px);
   }
 }
 
@@ -964,17 +983,22 @@ select.filter-select:focus-visible {
   background: rgba(2, 7, 12, 0.76);
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: clamp(8px, 2vw, 20px);
+  overflow: auto;
   z-index: 50;
 }
 
 .modal-card {
-  width: min(920px, 96vw);
+  width: min(920px, 100%);
+  max-height: min(94vh, 980px);
   padding: 18px;
+  display: grid;
+  gap: 10px;
+  overflow: auto;
 }
 
 .modal-preview-wrap {
-  margin-top: 14px;
+  margin-top: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #f8fafc;
@@ -982,26 +1006,47 @@ select.filter-select:focus-visible {
   display: grid;
   place-items: center;
   width: 100%;
+  aspect-ratio: 4 / 3;
   min-height: 200px;
-  max-height: 56vh;
+  max-height: min(52vh, 560px);
+}
+
+.modal-preview-wrap.is-portrait-shot {
+  aspect-ratio: 3 / 4;
+  max-width: min(100%, 420px);
+  margin-inline: auto;
+}
+
+.modal-preview-wrap.is-landscape-shot {
+  aspect-ratio: 4 / 3;
 }
 
 .modal-preview-wrap img {
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: 100%;
-  max-height: calc(56vh - 20px);
+  max-height: 100%;
   object-fit: contain;
   display: block;
 }
 
 .modal-card h3 {
-  margin-bottom: 6px;
+  margin: 0;
 }
 
 .modal-card p {
   margin: 0;
   color: var(--text-muted);
+}
+
+.modal-card .modal-thumb-grid {
+  margin-top: 0;
+  max-height: min(24vh, 220px);
+}
+
+.modal-actions {
+  margin-top: 0;
+  justify-content: flex-end;
 }
 
 .primary-btn,
@@ -1288,16 +1333,22 @@ button:disabled {
   .modal-card {
     width: min(720px, 100%);
     padding: 14px;
+    max-height: 94vh;
+    gap: 9px;
   }
 
   .modal-preview-wrap {
-    min-height: 170px;
-    max-height: 52vh;
+    min-height: 160px;
+    max-height: min(44vh, 420px);
   }
 
-  .modal-thumb-grid {
-    grid-template-columns: repeat(auto-fit, minmax(80px, 96px));
-    max-height: min(200px, 28vh);
+  .modal-card .modal-thumb-grid {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    max-height: min(26vh, 180px);
+  }
+
+  .modal-card .modal-thumb-grid .thumb-item {
+    width: min(96px, 100%);
   }
 }
 
@@ -1341,10 +1392,25 @@ button:disabled {
     flex-basis: clamp(88px, 28vw, 112px);
   }
 
-  .modal-thumb-grid {
-    grid-template-columns: repeat(auto-fit, minmax(72px, 88px));
-    max-height: min(170px, 25vh);
+  .modal-card {
+    padding: 12px;
+    max-height: 96vh;
+  }
+
+  .modal-preview-wrap {
+    min-height: 130px;
+    max-height: min(38vh, 320px);
+    padding: 8px;
+  }
+
+  .modal-card .modal-thumb-grid {
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+    max-height: min(28vh, 160px);
     gap: 7px;
+  }
+
+  .modal-card .modal-thumb-grid .thumb-item {
+    width: min(88px, 100%);
   }
 
   .sample-slide img {
@@ -1388,7 +1454,8 @@ button:disabled {
   }
 
   .modal-card {
-    padding: 12px;
+    padding: 10px;
+    gap: 8px;
   }
 }
 
@@ -1409,5 +1476,15 @@ button:disabled {
   body[data-device-orientation="landscape"] .preview-canvas-wrap,
   body[data-device-orientation="landscape"] .download-canvas-wrap {
     height: clamp(220px, 62vh, 620px);
+  }
+
+  body .preview-canvas-wrap.is-portrait-layout,
+  body .download-canvas-wrap.is-portrait-layout {
+    height: clamp(360px, 68vh, 920px);
+  }
+
+  body .preview-canvas-wrap.is-ultra-portrait-layout,
+  body .download-canvas-wrap.is-ultra-portrait-layout {
+    height: clamp(420px, 76vh, 980px);
   }
 }

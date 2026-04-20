@@ -7,6 +7,12 @@ export const appState = {
     facingMode: "user",
     mirror: true
   },
+  livePhoto: {
+    enabled: false,
+    blob: null,
+    url: "",
+    mimeType: ""
+  },
   photos: [],
   filters: {
     grayscale: 0,
@@ -35,6 +41,9 @@ export function resetCaptureSession() {
   appState.photos = [];
   appState.finalCanvas = null;
   appState.autoSavedCurrentResult = false;
+  appState.livePhoto.blob = null;
+  appState.livePhoto.url = "";
+  appState.livePhoto.mimeType = "";
 }
 
 export function resetEditorDefaults() {
