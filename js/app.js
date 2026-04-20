@@ -497,6 +497,9 @@ function renderPhotoThumbs(target, options = {}) {
     node.dataset.index = String(index);
     node.classList.toggle("active", index === selectedIndex);
     const image = node.querySelector("img");
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.draggable = false;
     image.src = getThumbDataUrl(photo, useCurrentFilters);
     image.alt = `Captured shot ${index + 1}`;
 
