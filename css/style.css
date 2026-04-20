@@ -1333,22 +1333,35 @@ button:disabled {
   .modal-card {
     width: min(720px, 100%);
     padding: 14px;
-    max-height: 94vh;
+    max-height: calc(100dvh - 16px);
     gap: 9px;
+    overflow: hidden;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   }
 
   .modal-preview-wrap {
     min-height: 160px;
-    max-height: min(44vh, 420px);
+    max-height: min(40dvh, 420px);
   }
 
   .modal-card .modal-thumb-grid {
     grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    max-height: min(26vh, 180px);
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .modal-card .modal-thumb-grid .thumb-item {
     width: min(96px, 100%);
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--panel-strong);
+    padding-top: 8px;
+    margin-top: 8px;
   }
 }
 
@@ -1394,18 +1407,17 @@ button:disabled {
 
   .modal-card {
     padding: 12px;
-    max-height: 96vh;
+    max-height: calc(100dvh - 10px);
   }
 
   .modal-preview-wrap {
     min-height: 130px;
-    max-height: min(38vh, 320px);
+    max-height: min(34dvh, 320px);
     padding: 8px;
   }
 
   .modal-card .modal-thumb-grid {
-    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-    max-height: min(28vh, 160px);
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
     gap: 7px;
   }
 
@@ -1456,6 +1468,7 @@ button:disabled {
   .modal-card {
     padding: 10px;
     gap: 8px;
+    max-height: calc(100dvh - 8px);
   }
 }
 
