@@ -1228,7 +1228,12 @@ async function runCaptureFlow() {
       if (liveRecordingStarted) {
         setHintStatus(elements.livePhotoHint, "Live Photo recording in progress...");
       } else {
-        setHintStatus(elements.livePhotoHint, "Could not start Live Photo recording on this browser.", true);
+        const livePhotoError = cameraService.getLivePhotoLastError();
+        setHintStatus(
+          elements.livePhotoHint,
+          livePhotoError || "Could not start Live Photo recording on this browser.",
+          true
+        );
       }
     }
 
@@ -1254,7 +1259,12 @@ async function runCaptureFlow() {
         setLivePhotoBlob(livePhotoBlob);
         setHintStatus(elements.livePhotoHint, "Live Photo captured.");
       } else {
-        setHintStatus(elements.livePhotoHint, "Live Photo could not be generated. Try again.", true);
+        const livePhotoError = cameraService.getLivePhotoLastError();
+        setHintStatus(
+          elements.livePhotoHint,
+          livePhotoError || "Live Photo could not be generated. Try again.",
+          true
+        );
       }
     }
 

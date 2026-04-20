@@ -10,6 +10,11 @@ export class CameraService {
     this.liveStopPromise = null;
     this.liveStopResolver = null;
     this.liveMimeType = "";
+    this.liveCaptureCanvas = null;
+    this.liveCaptureContext = null;
+    this.liveCaptureRafId = 0;
+    this.liveCanvasStream = null;
+    this.liveLastErrorMessage = "";
   }
 
   resolveLivePhotoMimeType() {
@@ -18,6 +23,9 @@ export class CameraService {
     }
 
     const preferredMimeTypes = [
+      "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
       "video/webm;codecs=vp9,opus",
       "video/webm;codecs=vp8,opus",
       "video/webm;codecs=vp9",
@@ -32,8 +40,104 @@ export class CameraService {
     return Boolean(this.stream) && typeof MediaRecorder !== "undefined";
   }
 
+  getLivePhotoLastError() {
+    return this.liveLastErrorMessage;
+  }
+
+  createLiveRecorder(sourceStream, mimeType) {
+    if (!sourceStream || typeof MediaRecorder === "undefined") {
+      return null;
+    }
+
+    if (mimeType) {
+      try {
+        return new MediaRecorder(sourceStream, { mimeType });
+      } catch (error) {
+        // Fall through and retry without explicit mimeType.
+      }
+    }
+
+    try {
+      return new MediaRecorder(sourceStream);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  releaseLiveCanvasResources() {
+    if (this.liveCaptureRafId) {
+      cancelAnimationFrame(this.liveCaptureRafId);
+      this.liveCaptureRafId = 0;
+    }
+
+    if (this.liveCanvasStream) {
+      this.liveCanvasStream.getTracks().forEach((track) => track.stop());
+      this.liveCanvasStream = null;
+    }
+
+    this.liveCaptureContext = null;
+    this.liveCaptureCanvas = null;
+  }
+
+  createLiveCanvasStream() {
+    const sourceWidth = this.videoElement?.videoWidth || 1280;
+    const sourceHeight = this.videoElement?.videoHeight || 720;
+    const width = Math.max(1, Number(sourceWidth) || 1280);
+    const height = Math.max(1, Number(sourceHeight) || 720);
+
+    this.liveCaptureCanvas = document.createElement("canvas");
+    this.liveCaptureCanvas.width = width;
+    this.liveCaptureCanvas.height = height;
+    this.liveCaptureContext = this.liveCaptureCanvas.getContext("2d", { alpha: false });
+
+    if (!this.liveCaptureContext) {
+      this.releaseLiveCanvasResources();
+      return null;
+    }
+
+    const drawFrame = () => {
+      if (!this.liveCaptureContext || !this.videoElement) {
+        return;
+      }
+
+      this.liveCaptureContext.fillStyle = "#0f172a";
+      this.liveCaptureContext.fillRect(0, 0, width, height);
+
+      if (this.mirrorCapture) {
+        this.liveCaptureContext.save();
+        this.liveCaptureContext.translate(width, 0);
+        this.liveCaptureContext.scale(-1, 1);
+        this.liveCaptureContext.drawImage(this.videoElement, 0, 0, width, height);
+        this.liveCaptureContext.restore();
+      } else {
+        this.liveCaptureContext.drawImage(this.videoElement, 0, 0, width, height);
+      }
+
+      this.liveCaptureRafId = requestAnimationFrame(drawFrame);
+    };
+
+    if (typeof this.liveCaptureCanvas.captureStream !== "function") {
+      this.releaseLiveCanvasResources();
+      return null;
+    }
+
+    drawFrame();
+
+    try {
+      this.liveCanvasStream = this.liveCaptureCanvas.captureStream(24);
+    } catch (error) {
+      this.releaseLiveCanvasResources();
+      return null;
+    }
+
+    return this.liveCanvasStream;
+  }
+
   async startLivePhotoRecording() {
+    this.liveLastErrorMessage = "";
+
     if (!this.canRecordLivePhoto()) {
+      this.liveLastErrorMessage = "Live Photo recording is not supported on this browser.";
       return false;
     }
 
@@ -48,13 +152,17 @@ export class CameraService {
     this.liveChunks = [];
     const resolvedMimeType = this.resolveLivePhotoMimeType();
 
-    try {
-      this.liveRecorder = resolvedMimeType
-        ? new MediaRecorder(this.stream, { mimeType: resolvedMimeType })
-        : new MediaRecorder(this.stream);
-    } catch (error) {
-      this.liveRecorder = null;
+    this.liveRecorder = this.createLiveRecorder(this.stream, resolvedMimeType);
+
+    if (!this.liveRecorder) {
+      const fallbackCanvasStream = this.createLiveCanvasStream();
+      this.liveRecorder = this.createLiveRecorder(fallbackCanvasStream, resolvedMimeType);
+    }
+
+    if (!this.liveRecorder) {
       this.liveMimeType = "";
+      this.liveLastErrorMessage = "This browser could not initialize Live Photo recording.";
+      this.releaseLiveCanvasResources();
       return false;
     }
 
@@ -75,6 +183,9 @@ export class CameraService {
       this.liveStopResolver = null;
       this.liveChunks = [];
       this.liveRecorder = null;
+      this.liveMimeType = "";
+      this.liveLastErrorMessage = "Live Photo recording failed during capture.";
+      this.releaseLiveCanvasResources();
 
       if (resolver) {
         resolver(null);
@@ -91,18 +202,38 @@ export class CameraService {
 
       this.liveChunks = [];
       this.liveRecorder = null;
+      this.liveMimeType = "";
+      this.releaseLiveCanvasResources();
 
       if (resolver) {
         resolver(blob);
       }
     };
 
-    this.liveRecorder.start(250);
+    try {
+      this.liveRecorder.start(250);
+    } catch (error) {
+      this.liveLastErrorMessage = "Live Photo recorder could not start.";
+      this.liveRecorder = null;
+      this.liveMimeType = "";
+      this.releaseLiveCanvasResources();
+
+      if (this.liveStopResolver) {
+        const resolver = this.liveStopResolver;
+        this.liveStopResolver = null;
+        resolver(null);
+      }
+
+      this.liveStopPromise = null;
+      return false;
+    }
+
     return true;
   }
 
   async stopLivePhotoRecording() {
     if (!this.liveRecorder) {
+      this.releaseLiveCanvasResources();
       return null;
     }
 
@@ -120,6 +251,7 @@ export class CameraService {
     try {
       return await pendingStopPromise;
     } catch (error) {
+      this.liveLastErrorMessage = "Live Photo recording stopped unexpectedly.";
       return null;
     }
   }
@@ -174,6 +306,8 @@ export class CameraService {
     if (this.liveRecorder && this.liveRecorder.state !== "inactive") {
       this.liveRecorder.stop();
     }
+
+    this.releaseLiveCanvasResources();
 
     if (!this.stream) {
       return;
