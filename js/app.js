@@ -543,6 +543,7 @@ function setScreen(step) {
 }
 
 function openModal() {
+  syncModalLayoutMode();
   elements.modal.classList.remove("hidden");
   elements.modal.setAttribute("aria-hidden", "false");
 }
@@ -583,6 +584,8 @@ function updateModalPreviewImage(useCurrentFilters = true) {
     return;
   }
 
+  syncModalLayoutMode();
+
   const previewWrap = elements.modalPreviewImage.parentElement;
 
   if (!appState.photos.length) {
@@ -615,6 +618,26 @@ function updateModalPreviewImage(useCurrentFilters = true) {
   Array.from(elements.modalThumbGrid.querySelectorAll(".thumb-item")).forEach((node) => {
     node.classList.toggle("active", Number(node.dataset.index) === selectedModalPhotoIndex);
   });
+}
+
+function syncModalLayoutMode() {
+  if (!elements.modal || !elements.modalPreviewImage) {
+    return;
+  }
+
+  const modalCard = elements.modal.querySelector(".modal-card");
+  const previewWrap = elements.modalPreviewImage.parentElement;
+
+  if (!modalCard || !previewWrap) {
+    return;
+  }
+
+  const currentLayout = appState.layout;
+  const isPortraitLayout = currentLayout !== "strip4Horizontal";
+
+  modalCard.dataset.captureLayout = currentLayout;
+  previewWrap.classList.toggle("is-layout-portrait", isPortraitLayout);
+  previewWrap.classList.toggle("is-layout-landscape", !isPortraitLayout);
 }
 
 function renderPhotoThumbs(target, options = {}) {
@@ -753,6 +776,7 @@ function applyLayoutSelection(layout, options = {}) {
   }
 
   syncPreviewLayoutMode();
+  syncModalLayoutMode();
 
   if (appState.finalCanvas) {
     window.requestAnimationFrame(() => {
@@ -1192,6 +1216,15 @@ async function openDownloadStep() {
   }
 
   renderLivePhotoPreview();
+
+  if (appState.livePhoto.enabled && !appState.livePhoto.blob && elements.livePhotoExportHint) {
+    const livePhotoError = cameraService.getLivePhotoLastError();
+    setHintStatus(
+      elements.livePhotoExportHint,
+      livePhotoError || "Live Photo was enabled, but no clip was captured for this session.",
+      true
+    );
+  }
 
   autoSaveCurrentResult();
   renderGallery();

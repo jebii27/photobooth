@@ -14,6 +14,7 @@ export class CameraService {
     this.liveCaptureContext = null;
     this.liveCaptureRafId = 0;
     this.liveCanvasStream = null;
+    this.liveVideoElementStream = null;
     this.liveLastErrorMessage = "";
   }
 
@@ -75,8 +76,32 @@ export class CameraService {
       this.liveCanvasStream = null;
     }
 
+    if (this.liveVideoElementStream) {
+      this.liveVideoElementStream.getTracks().forEach((track) => track.stop());
+      this.liveVideoElementStream = null;
+    }
+
     this.liveCaptureContext = null;
     this.liveCaptureCanvas = null;
+  }
+
+  createVideoElementStream() {
+    if (!this.videoElement) {
+      return null;
+    }
+
+    const captureFromVideo = this.videoElement.captureStream || this.videoElement.mozCaptureStream;
+    if (typeof captureFromVideo !== "function") {
+      return null;
+    }
+
+    try {
+      this.liveVideoElementStream = captureFromVideo.call(this.videoElement);
+      return this.liveVideoElementStream;
+    } catch (error) {
+      this.liveVideoElementStream = null;
+      return null;
+    }
   }
 
   createLiveCanvasStream() {
@@ -155,6 +180,11 @@ export class CameraService {
     this.liveRecorder = this.createLiveRecorder(this.stream, resolvedMimeType);
 
     if (!this.liveRecorder) {
+      const videoElementStream = this.createVideoElementStream();
+      this.liveRecorder = this.createLiveRecorder(videoElementStream, resolvedMimeType);
+    }
+
+    if (!this.liveRecorder) {
       const fallbackCanvasStream = this.createLiveCanvasStream();
       this.liveRecorder = this.createLiveRecorder(fallbackCanvasStream, resolvedMimeType);
     }
@@ -199,6 +229,12 @@ export class CameraService {
       const blob = this.liveChunks.length
         ? new Blob(this.liveChunks, { type: this.liveMimeType || "video/webm" })
         : null;
+
+      if (blob && blob.size > 0) {
+        this.liveLastErrorMessage = "";
+      } else {
+        this.liveLastErrorMessage = "Live Photo recording finished without clip data.";
+      }
 
       this.liveChunks = [];
       this.liveRecorder = null;

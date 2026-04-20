@@ -1017,8 +1017,19 @@ select.filter-select:focus-visible {
   margin-inline: auto;
 }
 
+.modal-preview-wrap.is-layout-portrait {
+  aspect-ratio: 3 / 4;
+  max-width: min(100%, 440px);
+  margin-inline: auto;
+}
+
 .modal-preview-wrap.is-landscape-shot {
   aspect-ratio: 4 / 3;
+}
+
+.modal-preview-wrap.is-layout-landscape {
+  aspect-ratio: 4 / 3;
+  max-width: 100%;
 }
 
 .modal-preview-wrap img {
@@ -1042,6 +1053,21 @@ select.filter-select:focus-visible {
 .modal-card .modal-thumb-grid {
   margin-top: 0;
   max-height: min(24vh, 220px);
+}
+
+.modal-card[data-capture-layout="single"] .modal-preview-wrap,
+.modal-card[data-capture-layout="grid2x2"] .modal-preview-wrap,
+.modal-card[data-capture-layout="strip4"] .modal-preview-wrap {
+  max-height: min(46dvh, 500px);
+}
+
+.modal-card[data-capture-layout="strip4Horizontal"] .modal-preview-wrap {
+  max-height: min(52dvh, 560px);
+}
+
+.modal-card[data-capture-layout="single"] .modal-thumb-grid {
+  grid-template-columns: minmax(88px, 112px);
+  justify-content: center;
 }
 
 .modal-actions {
@@ -1344,6 +1370,16 @@ button:disabled {
     max-height: min(40dvh, 420px);
   }
 
+  .modal-card[data-capture-layout="single"] .modal-preview-wrap,
+  .modal-card[data-capture-layout="grid2x2"] .modal-preview-wrap,
+  .modal-card[data-capture-layout="strip4"] .modal-preview-wrap {
+    max-height: min(34dvh, 300px);
+  }
+
+  .modal-card[data-capture-layout="strip4Horizontal"] .modal-preview-wrap {
+    max-height: min(40dvh, 360px);
+  }
+
   .modal-card .modal-thumb-grid {
     grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
     max-height: none;
@@ -1414,6 +1450,16 @@ button:disabled {
     min-height: 130px;
     max-height: min(34dvh, 320px);
     padding: 8px;
+  }
+
+  .modal-card[data-capture-layout="single"] .modal-preview-wrap,
+  .modal-card[data-capture-layout="grid2x2"] .modal-preview-wrap,
+  .modal-card[data-capture-layout="strip4"] .modal-preview-wrap {
+    max-height: min(30dvh, 260px);
+  }
+
+  .modal-card[data-capture-layout="strip4Horizontal"] .modal-preview-wrap {
+    max-height: min(34dvh, 300px);
   }
 
   .modal-card .modal-thumb-grid {
